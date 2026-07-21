@@ -10,9 +10,15 @@ import {
   type ActionResult,
   type Application,
   type ApplicationStatus,
+  type EmailOverride,
   type EmailType,
   type ReviewNote,
 } from '@/lib/types'
+
+const emailOverrideSchema = z.object({
+  subject: z.string().trim().min(1).max(200),
+  text: z.string().trim().min(1).max(10000),
+})
 
 // ponytail: in-memory login throttle — resets on cold start, fine for 1-3 admins.
 const loginAttempts = new Map<string, { count: number; windowStart: number }>()
@@ -62,11 +68,21 @@ export async function updateStatus(input: {
   applicationId: string
   status: ApplicationStatus
   sendEmail: boolean
+  emailOverride?: EmailOverride
 }): Promise<ActionResult<{ application: Application; email?: { outcome: 'sent' | 'failed' | 'skipped'; error?: string } }>> {
   const session = await requireAdmin()
 
   if (!ALL_STATUSES.includes(input.status)) {
     return { ok: false, error: 'validation', message: 'Unknown status.' }
+  }
+
+  let override: EmailOverride | undefined
+  if (input.emailOverride) {
+    const parsed = emailOverrideSchema.safeParse(input.emailOverride)
+    if (!parsed.success) {
+      return { ok: false, error: 'validation', message: 'Edited email needs a subject and a body.' }
+    }
+    override = parsed.data
   }
 
   // Status change first — email is a separate, non-blocking concern.
@@ -89,7 +105,7 @@ export async function updateStatus(input: {
   if (!emailType) return { ok: true, application }
 
   if (!input.sendEmail) {
-    await logSkippedEmail({ application, type: emailType, triggeredBy: session.displayName })
+    await logSkippedEmail({ application, type: emailType, triggeredBy: session.displayName, override })
     return { ok: true, application, email: { outcome: 'skipped' } }
   }
 
@@ -97,6 +113,7 @@ export async function updateStatus(input: {
     application,
     type: emailType,
     triggeredBy: session.displayName,
+    override,
   })
   return { ok: true, application, email: result }
 }
@@ -128,10 +145,25 @@ export async function resendEmail(input: {
   const { data, error } = await db().from('applications').select('*').eq('id', input.applicationId).single()
   if (error || !data) return { ok: false, error: 'server', message: 'Application not found.' }
 
+  // Retry resends what was last on screen: the most recent log row for this email
+  // type carries body_text when the admin edited it; null means template verbatim.
+  const { data: lastLog } = await db()
+    .from('email_log')
+    .select('subject, body_text')
+    .eq('application_id', input.applicationId)
+    .eq('email_type', input.emailType)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const override: EmailOverride | undefined = lastLog?.body_text
+    ? { subject: lastLog.subject, text: lastLog.body_text }
+    : undefined
+
   const result = await sendApplicationEmail({
     application: data as Application,
     type: input.emailType,
     triggeredBy: session.displayName,
+    override,
   })
   return { ok: true, ...result }
 }

@@ -1,8 +1,8 @@
 import 'server-only'
 import { Resend } from 'resend'
 import { db } from '@/lib/db'
-import { getEmailContent } from '@/lib/email/templates'
-import type { Application, EmailType } from '@/lib/types'
+import { getEmailContent, renderCustomEmail } from '@/lib/email/templates'
+import type { Application, EmailOverride, EmailType } from '@/lib/types'
 
 export interface SendResult {
   outcome: 'sent' | 'failed'
@@ -17,9 +17,10 @@ export async function sendApplicationEmail(opts: {
   application: Application
   type: EmailType
   triggeredBy: string
+  override?: EmailOverride
 }): Promise<SendResult> {
-  const { application, type, triggeredBy } = opts
-  const content = getEmailContent(type, application)
+  const { application, type, triggeredBy, override } = opts
+  const content = override ? renderCustomEmail(override.subject, override.text) : getEmailContent(type, application)
 
   let outcome: 'sent' | 'failed' = 'sent'
   let resendId: string | null = null
@@ -51,6 +52,7 @@ export async function sendApplicationEmail(opts: {
     recipient: application.email,
     subject: content.subject,
     outcome,
+    body_text: override ? content.text : null,
     resend_id: resendId,
     error: errorMessage,
     triggered_by: triggeredBy,
@@ -65,14 +67,18 @@ export async function logSkippedEmail(opts: {
   application: Application
   type: EmailType
   triggeredBy: string
+  override?: EmailOverride
 }): Promise<void> {
-  const content = getEmailContent(opts.type, opts.application)
+  const content = opts.override
+    ? renderCustomEmail(opts.override.subject, opts.override.text)
+    : getEmailContent(opts.type, opts.application)
   const { error } = await db().from('email_log').insert({
     application_id: opts.application.id,
     email_type: opts.type,
     recipient: opts.application.email,
     subject: content.subject,
     outcome: 'skipped',
+    body_text: opts.override ? content.text : null,
     triggered_by: opts.triggeredBy,
   })
   if (error) console.error('email_log insert failed:', error.message)

@@ -44,6 +44,31 @@ function p(text: string): string {
   return `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;">${text}</p>`
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function linkify(escaped: string): string {
+  return escaped.replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" style="color:#0A6B5A;">${url}</a>`)
+}
+
+/**
+ * Renders admin-edited plain text through the same brand layout as the templates.
+ * Shared by the preview dialog and the send module, so editing keeps the
+ * "what you preview is what you send" guarantee. Blank lines separate paragraphs.
+ */
+export function renderCustomEmail(subject: string, text: string): EmailContent {
+  const html = wrapLayout(
+    text
+      .split(/\n{2,}/)
+      .map((para) => para.trim())
+      .filter(Boolean)
+      .map((para) => p(linkify(escapeHtml(para)).replace(/\n/g, '<br/>')))
+      .join('')
+  )
+  return { subject, text, html }
+}
+
 export function getEmailContent(type: EmailType, application: Application): EmailContent {
   const track = TRACKS[application.track]
   const trackName = track?.name ?? 'Residency'
