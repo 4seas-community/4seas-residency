@@ -8,6 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { CountryCombobox } from '@/components/residency/country-combobox'
 import { submitApplication } from '@/lib/actions/public'
 import { COMMUNITY_LINKS } from '@/lib/content/site'
 import type { TrackConfig } from '@/lib/content/tracks'
@@ -50,49 +58,78 @@ const initialFormData: FormData = {
 
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length
 
+type FieldErrors = Partial<Record<keyof FormData, string>>
+
+// Aligned with the server's zod .email() — the old includes('@') let through
+// values the server would then reject.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Validation + focus order, top to bottom as rendered.
+const FIELD_ORDER: (keyof FormData)[] = [
+  'fullName', 'email', 'telegramOrWhatsapp', 'preferredStartDate', 'country',
+  'about', 'contribution', 'primaryLink',
+]
+
+const fieldId = (field: keyof FormData) => `apply-${field}`
+
+function validate(data: FormData): FieldErrors {
+  const errors: FieldErrors = {}
+  if (!data.fullName.trim()) errors.fullName = 'Please enter your name'
+  if (!EMAIL_RE.test(data.email.trim())) errors.email = 'Please enter a valid email address'
+  if (!data.telegramOrWhatsapp.trim()) errors.telegramOrWhatsapp = 'Please provide a WhatsApp or Telegram contact'
+  if (!data.preferredStartDate) errors.preferredStartDate = 'Please select a start date'
+  if (!data.country.trim()) errors.country = 'Please select your country'
+  if (!data.about.trim()) errors.about = 'Please tell us about yourself'
+  else if (countWords(data.about) > 300) errors.about = 'Please keep your response under 300 words'
+  if (!data.contribution.trim()) errors.contribution = 'Please tell us what you plan to contribute'
+  if (!data.primaryLink.trim()) errors.primaryLink = 'Please provide at least one link'
+  return errors
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="text-sm text-red-500">{message}</p>
+}
+
 export default function ApplicationForm({ track, startDateOptions }: ApplicationFormProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [serverError, setServerError] = useState<string | null>(null)
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    setError(null)
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev))
+    setServerError(null)
   }
 
   const wordCount = countWords(formData.about)
   const isOverLimit = wordCount > 300
 
-  const validateForm = () => {
-    if (!formData.fullName.trim()) return setError('Please enter your name'), false
-    if (!formData.email.trim() || !formData.email.includes('@'))
-      return setError('Please enter a valid email address'), false
-    if (!formData.telegramOrWhatsapp.trim()) return setError('Please provide WhatsApp or Telegram contact'), false
-    if (!formData.country.trim()) return setError('Please enter your country'), false
-    if (!formData.preferredStartDate) return setError('Please select a start date'), false
-    if (!formData.about.trim()) return setError('Please tell us about yourself'), false
-    if (isOverLimit) return setError('Please keep your response under 300 words'), false
-    if (!formData.contribution.trim()) return setError('Please tell us what you plan to contribute'), false
-    if (!formData.primaryLink.trim()) return setError('Please provide at least one link'), false
-    return true
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validateForm()) return
+    const errs = validate(formData)
+    setErrors(errs)
+    setServerError(null)
+    const firstInvalid = FIELD_ORDER.find((f) => errs[f])
+    if (firstInvalid) {
+      const el = document.getElementById(fieldId(firstInvalid))
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el?.focus({ preventScroll: true })
+      return
+    }
 
     setIsSubmitting(true)
-    setError(null)
     try {
       const result = await submitApplication({ track: track.id, ...formData })
       if (result.ok) {
         setIsSubmitted(true)
       } else {
-        setError(result.message ?? 'Failed to submit application. Please try again.')
+        setServerError(result.message ?? 'Failed to submit application. Please try again.')
       }
     } catch {
-      setError('Failed to submit application. Please try again.')
+      setServerError('Failed to submit application. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -207,33 +244,48 @@ export default function ApplicationForm({ track, startDateOptions }: Application
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">PERSONAL INFORMATION</h2>
 
         <div className="space-y-2">
-          <Label>
+          <Label htmlFor={fieldId('fullName')}>
             Name <span className="text-red-500">*</span>
           </Label>
-          <Input value={formData.fullName} onChange={(e) => handleInputChange('fullName', e.target.value)} placeholder="Your name" />
+          <Input
+            id={fieldId('fullName')}
+            autoComplete="name"
+            aria-invalid={!!errors.fullName || undefined}
+            value={formData.fullName}
+            onChange={(e) => handleInputChange('fullName', e.target.value)}
+            placeholder="Your name"
+          />
+          <FieldError message={errors.fullName} />
         </div>
 
         <div className="space-y-2">
-          <Label>
+          <Label htmlFor={fieldId('email')}>
             Email <span className="text-red-500">*</span>
           </Label>
           <Input
+            id={fieldId('email')}
             type="email"
+            autoComplete="email"
+            aria-invalid={!!errors.email || undefined}
             value={formData.email}
             onChange={(e) => handleInputChange('email', e.target.value)}
             placeholder="your@email.com"
           />
+          <FieldError message={errors.email} />
         </div>
 
         <div className="space-y-2">
-          <Label>
+          <Label htmlFor={fieldId('telegramOrWhatsapp')}>
             WhatsApp or Telegram <span className="text-red-500">*</span>
           </Label>
           <Input
+            id={fieldId('telegramOrWhatsapp')}
+            aria-invalid={!!errors.telegramOrWhatsapp || undefined}
             value={formData.telegramOrWhatsapp}
             onChange={(e) => handleInputChange('telegramOrWhatsapp', e.target.value)}
             placeholder="@username or +1234567890"
           />
+          <FieldError message={errors.telegramOrWhatsapp} />
         </div>
       </div>
 
@@ -242,28 +294,42 @@ export default function ApplicationForm({ track, startDateOptions }: Application
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">VISIT DETAILS</h2>
 
         <div className="space-y-2">
-          <Label>
+          <Label htmlFor={fieldId('preferredStartDate')}>
             Preferred Start Date <span className="text-red-500">*</span>
           </Label>
-          <select
+          <Select
             value={formData.preferredStartDate}
-            onChange={(e) => handleInputChange('preferredStartDate', e.target.value)}
-            className="w-full h-10 px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground"
+            onValueChange={(v) => handleInputChange('preferredStartDate', v)}
           >
-            <option value="">Select a start date</option>
-            {startDateOptions.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              id={fieldId('preferredStartDate')}
+              className="w-full"
+              aria-invalid={!!errors.preferredStartDate || undefined}
+            >
+              <SelectValue placeholder="Select a start date" />
+            </SelectTrigger>
+            <SelectContent>
+              {startDateOptions.map(({ value, label }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldError message={errors.preferredStartDate} />
         </div>
 
         <div className="space-y-2">
-          <Label>
+          <Label htmlFor={fieldId('country')}>
             Country <span className="text-red-500">*</span>
           </Label>
-          <Input value={formData.country} onChange={(e) => handleInputChange('country', e.target.value)} placeholder="Your country" />
+          <CountryCombobox
+            id={fieldId('country')}
+            value={formData.country}
+            onChange={(v) => handleInputChange('country', v)}
+            invalid={!!errors.country}
+          />
+          <FieldError message={errors.country} />
         </div>
       </div>
 
@@ -272,7 +338,7 @@ export default function ApplicationForm({ track, startDateOptions }: Application
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">ABOUT YOU</h2>
 
         <div className="space-y-2">
-          <Label>
+          <Label htmlFor={fieldId('about')}>
             Tell us about yourself <span className="text-red-500">*</span>
           </Label>
           <p className="text-sm text-muted-foreground">
@@ -286,6 +352,8 @@ export default function ApplicationForm({ track, startDateOptions }: Application
           </p>
           <p className="text-sm text-muted-foreground italic">(Please keep your response under 300 words.)</p>
           <Textarea
+            id={fieldId('about')}
+            aria-invalid={!!errors.about || undefined}
             value={formData.about}
             onChange={(e) => handleInputChange('about', e.target.value)}
             placeholder="Tell us about yourself..."
@@ -295,10 +363,11 @@ export default function ApplicationForm({ track, startDateOptions }: Application
           <p className={`text-xs ${isOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
             {wordCount}/300 words {isOverLimit && '- Please reduce your response'}
           </p>
+          <FieldError message={errors.about} />
         </div>
 
         <div className="space-y-2">
-          <Label>
+          <Label htmlFor={fieldId('contribution')}>
             What do you plan to contribute? <span className="text-red-500">*</span>
           </Label>
           <p className="text-sm text-muted-foreground">
@@ -306,11 +375,15 @@ export default function ApplicationForm({ track, startDateOptions }: Application
             specific in mind yet, please describe the part you think you could contribute.
           </p>
           <Textarea
+            id={fieldId('contribution')}
+            aria-invalid={!!errors.contribution || undefined}
+            maxLength={5000}
             value={formData.contribution}
             onChange={(e) => handleInputChange('contribution', e.target.value)}
             placeholder="Share your planned contribution, or the part you think you could contribute..."
             rows={5}
           />
+          <FieldError message={errors.contribution} />
         </div>
       </div>
 
@@ -319,20 +392,27 @@ export default function ApplicationForm({ track, startDateOptions }: Application
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">SOCIAL LINKS</h2>
 
         <div className="space-y-2">
-          <Label>
+          <Label htmlFor={fieldId('primaryLink')}>
             {track.apply.primaryLinkLabel} <span className="text-red-500">*</span>
           </Label>
           <p className="text-sm text-muted-foreground">At least provide one link, so that we can know a bit more from you.</p>
           <Input
+            id={fieldId('primaryLink')}
+            inputMode="url"
+            autoComplete="url"
+            aria-invalid={!!errors.primaryLink || undefined}
             value={formData.primaryLink}
             onChange={(e) => handleInputChange('primaryLink', e.target.value)}
             placeholder="https://..."
           />
+          <FieldError message={errors.primaryLink} />
         </div>
 
         <div className="space-y-2">
-          <Label>LinkedIn</Label>
+          <Label htmlFor={fieldId('linkedin')}>LinkedIn</Label>
           <Input
+            id={fieldId('linkedin')}
+            inputMode="url"
             value={formData.linkedin}
             onChange={(e) => handleInputChange('linkedin', e.target.value)}
             placeholder="https://linkedin.com/in/..."
@@ -340,9 +420,10 @@ export default function ApplicationForm({ track, startDateOptions }: Application
         </div>
 
         <div className="space-y-2">
-          <Label>{track.apply.extraLinkLabel}</Label>
+          <Label htmlFor={fieldId('extraLink')}>{track.apply.extraLinkLabel}</Label>
           {track.apply.extraLinkHint && <p className="text-sm text-muted-foreground">{track.apply.extraLinkHint}</p>}
           <Input
+            id={fieldId('extraLink')}
             value={formData.extraLink}
             onChange={(e) => handleInputChange('extraLink', e.target.value)}
             placeholder={track.apply.extraLinkPlaceholder}
@@ -355,12 +436,16 @@ export default function ApplicationForm({ track, startDateOptions }: Application
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">CONTENT STUDIO</h2>
 
         <div className="space-y-2">
-          <Label>Do you have any plans to use the Content Studio during your residency?</Label>
+          <Label htmlFor={fieldId('contentStudioPlans')}>
+            Do you have any plans to use the Content Studio during your residency?
+          </Label>
           <p className="text-sm text-muted-foreground">
             We have a fully equipped content studio available for residents. Let us know if you have any content
             creation plans (podcasts, videos, interviews, etc.)
           </p>
           <Textarea
+            id={fieldId('contentStudioPlans')}
+            maxLength={5000}
             value={formData.contentStudioPlans}
             onChange={(e) => handleInputChange('contentStudioPlans', e.target.value)}
             placeholder="Your content creation plans (optional)"
@@ -369,9 +454,9 @@ export default function ApplicationForm({ track, startDateOptions }: Application
         </div>
       </div>
 
-      {error && (
+      {serverError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600 text-sm">{error}</p>
+          <p className="text-red-600 text-sm">{serverError}</p>
         </div>
       )}
 
