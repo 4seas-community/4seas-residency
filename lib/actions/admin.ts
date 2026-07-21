@@ -25,12 +25,7 @@ const loginAttempts = new Map<string, { count: number; windowStart: number }>()
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
 const LOGIN_MAX_ATTEMPTS = 10
 
-export async function login(input: { password: string; displayName: string }): Promise<ActionResult> {
-  const displayName = input.displayName?.trim()
-  if (!displayName || displayName.length > 50) {
-    return { ok: false, error: 'validation', message: 'Please enter a display name.' }
-  }
-
+export async function login(input: { password: string }): Promise<ActionResult> {
   const key = 'global'
   const now = Date.now()
   const entry = loginAttempts.get(key)
@@ -48,7 +43,7 @@ export async function login(input: { password: string; displayName: string }): P
   }
 
   loginAttempts.delete(key)
-  await createSession(displayName)
+  await createSession('Admin')
   return { ok: true }
 }
 

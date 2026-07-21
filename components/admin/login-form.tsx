@@ -10,7 +10,6 @@ import { login } from '@/lib/actions/admin'
 
 export function LoginForm() {
   const router = useRouter()
-  const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -20,7 +19,7 @@ export function LoginForm() {
     setIsSubmitting(true)
     setError(null)
     try {
-      const result = await login({ password, displayName })
+      const result = await login({ password })
       if (result.ok) {
         router.push('/admin')
         router.refresh()
@@ -35,15 +34,6 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label>Your name</Label>
-        <Input
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="Shown on your review notes"
-          autoComplete="username"
-        />
-      </div>
-      <div className="space-y-2">
         <Label>Password</Label>
         <Input
           type="password"
@@ -54,7 +44,7 @@ export function LoginForm() {
         />
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" disabled={isSubmitting || !displayName || !password} className="w-full">
+      <Button type="submit" disabled={isSubmitting || !password} className="w-full">
         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sign in'}
       </Button>
     </form>
