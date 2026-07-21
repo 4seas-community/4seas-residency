@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js'
 try {
   for (const line of readFileSync('.env.local', 'utf8').split('\n')) {
     const match = line.match(/^([A-Z_]+)=(.*)$/)
-    if (match && !process.env[match[1]]) process.env[match[1]] = match[2].replace(/^"|"$/g, '')
+    if (match && !process.env[match[1]]) process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '')
   }
 } catch {
   /* .env.local optional if env vars are already set */
@@ -54,7 +54,8 @@ async function main() {
       track,
       status,
       full_name: name,
-      email: `seed-${i + 1}@example.com`,
+      // Resend's official test inbox — deliverable, lands nowhere real
+      email: `delivered+seed-${i + 1}@resend.dev`,
       telegram_or_whatsapp: `@seed_user_${i + 1}`,
       country: ['Portugal', 'China', 'Ireland', 'Italy', 'India', 'Japan'][i % 6],
       preferred_start_date: startDate(withinCronWindow ? 2 : null, i),
