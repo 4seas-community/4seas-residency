@@ -52,6 +52,7 @@ function TrackCard({ track, index }: { track: TrackConfig; index: number }) {
         <img
           src={track.image}
           alt=""
+          loading="lazy"
           className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
@@ -113,7 +114,7 @@ export function HomePage() {
               {SITE.hero.title}
             </h1>
             <p className="text-base md:text-xl text-muted-foreground mb-3 md:mb-4 font-light">{SITE.hero.tagline}</p>
-            <p className="text-sm md:text-lg text-muted-foreground/80 max-w-3xl mx-auto mb-6 md:mb-10 leading-relaxed">
+            <p className="text-sm md:text-lg text-muted-foreground max-w-3xl mx-auto mb-6 md:mb-10 leading-relaxed">
               {SITE.hero.description}
             </p>
 
