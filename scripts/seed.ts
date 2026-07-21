@@ -23,7 +23,7 @@ if (!url || !key) {
 const db = createClient(url, key)
 
 const TRACKS = ['crypto', 'art', 'longevity'] as const
-const STATUSES = ['submitted', 'submitted', 'submitted', 'reviewing', 'interview', 'accepted', 'rejected'] as const
+const STATUSES = ['submitted', 'submitted', 'submitted', 'reviewing', 'interview', 'accepted', 'rejected', 'cancelled'] as const
 const NAMES = [
   'Maya Fernandes', 'Chen Xu', 'Liam O\'Brien', 'Sofia Rossi', 'Arjun Patel',
   'Yuki Tanaka', 'Elena Petrova', 'Daniel Kim', 'Amara Okafor', 'Lucas Silva',

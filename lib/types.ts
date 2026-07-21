@@ -1,6 +1,6 @@
 import type { TrackId } from '@/lib/content/tracks'
 
-export const ALL_STATUSES = ['submitted', 'reviewing', 'interview', 'accepted', 'rejected'] as const
+export const ALL_STATUSES = ['submitted', 'reviewing', 'interview', 'accepted', 'rejected', 'cancelled'] as const
 export type ApplicationStatus = (typeof ALL_STATUSES)[number]
 
 export const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; bgColor: string }> = {
@@ -9,10 +9,18 @@ export const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: st
   interview: { label: 'Interview', color: 'text-orange-700', bgColor: 'bg-orange-100' },
   accepted: { label: 'Accepted', color: 'text-green-700', bgColor: 'bg-green-100' },
   rejected: { label: 'Rejected', color: 'text-red-700', bgColor: 'bg-red-100' },
+  // Candidate-initiated exit (declined offer / cancelled interview / no-show). No email, terminal.
+  cancelled: { label: 'Cancelled', color: 'text-slate-600', bgColor: 'bg-slate-100' },
 }
 
 export type EmailType = 'interview' | 'accepted' | 'rejected' | 'movein_guide'
 export type EmailOutcome = 'sent' | 'failed' | 'skipped'
+
+/** Admin-edited replacement for a template email: plain-text body, html derived from it. */
+export interface EmailOverride {
+  subject: string
+  text: string
+}
 
 export interface Application {
   id: string
@@ -50,6 +58,8 @@ export interface EmailLog {
   recipient: string
   subject: string
   outcome: EmailOutcome
+  /** Non-null only when the admin edited the email — null means the template was sent verbatim. */
+  body_text: string | null
   resend_id: string | null
   error: string | null
   triggered_by: string
