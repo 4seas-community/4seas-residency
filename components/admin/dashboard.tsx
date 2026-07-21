@@ -19,7 +19,7 @@ import { logout, updateStatus, addNote, resendEmail } from '@/lib/actions/admin'
 import type { DashboardData } from '@/lib/db'
 import { TRACKS, TRACK_IDS } from '@/lib/content/tracks'
 import { ALL_STATUSES, STATUS_CONFIG } from '@/lib/types'
-import type { Application, ApplicationStatus, EmailLog, ReviewNote } from '@/lib/types'
+import type { Application, ApplicationStatus, EmailLog, EmailOverride, ReviewNote } from '@/lib/types'
 import {
   filterApplications,
   sortApplications,
@@ -71,6 +71,7 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
         application_id: applicationId,
         recipient: applications.find((a) => a.id === applicationId)?.email ?? '',
         subject: '',
+        body_text: null,
         resend_id: null,
         error: log.error ?? null,
         triggered_by: adminName,
@@ -81,9 +82,14 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
     ])
   }
 
-  const applyStatus = async (application: Application, status: ApplicationStatus, sendEmail: boolean) => {
+  const applyStatus = async (
+    application: Application,
+    status: ApplicationStatus,
+    sendEmail: boolean,
+    emailOverride?: EmailOverride,
+  ) => {
     setIsUpdating(true)
-    const result = await updateStatus({ applicationId: application.id, status, sendEmail })
+    const result = await updateStatus({ applicationId: application.id, status, sendEmail, emailOverride })
     setIsUpdating(false)
     setPendingStatus(null)
 
@@ -161,7 +167,7 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* Status summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {ALL_STATUSES.map((status) => (
             <button
               key={status}
@@ -273,7 +279,7 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
           application={selected}
           targetStatus={pendingStatus}
           isPending={isUpdating}
-          onConfirm={(sendEmail) => void applyStatus(selected, pendingStatus, sendEmail)}
+          onConfirm={(sendEmail, override) => void applyStatus(selected, pendingStatus, sendEmail, override)}
           onCancel={() => setPendingStatus(null)}
         />
       )}
