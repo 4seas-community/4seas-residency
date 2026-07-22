@@ -17,6 +17,7 @@ import { TRACKS } from '@/lib/content/tracks'
 import { STATUS_CONFIG, ALL_STATUSES } from '@/lib/types'
 import type { Application, ApplicationStatus, EmailLog, ReviewNote } from '@/lib/types'
 import { formatDateTimeGMT7, normalizeUrl } from '@/lib/applications/utils'
+import { SocialPlatformIcon } from '@/components/shared/social-platform-icon'
 
 interface DetailsSheetProps {
   application: Application
@@ -45,6 +46,7 @@ function LinkValue({ url }: { url: string }) {
       rel="noopener noreferrer"
       className="inline-flex items-center gap-1 text-primary hover:underline break-all"
     >
+      <SocialPlatformIcon url={url} className="size-4 shrink-0" />
       {url}
       <ExternalLink className="w-3 h-3 shrink-0" />
     </a>

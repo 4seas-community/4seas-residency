@@ -1,4 +1,5 @@
 import { COMMUNITY_LINKS } from '@/lib/content/site'
+import { formatSocialLink, SocialPlatformIcon } from '@/components/shared/social-platform-icon'
 
 export function Footer() {
   return (
@@ -19,22 +20,24 @@ export function Footer() {
             </a>
           </div>
 
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6 text-sm text-muted-foreground">
             <a
               href={COMMUNITY_LINKS.telegram}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-2 hover:text-foreground transition-colors"
             >
-              Telegram
+              <SocialPlatformIcon url={COMMUNITY_LINKS.telegram} />
+              {formatSocialLink(COMMUNITY_LINKS.telegram)}
             </a>
             <a
               href={COMMUNITY_LINKS.x}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-2 hover:text-foreground transition-colors"
             >
-              X / Twitter
+              <SocialPlatformIcon url={COMMUNITY_LINKS.x} />
+              {formatSocialLink(COMMUNITY_LINKS.x)}
             </a>
           </div>
         </div>

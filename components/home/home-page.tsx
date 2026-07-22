@@ -13,12 +13,12 @@ import {
   BookOpen,
   Calendar,
   CheckCircle,
-  MessageCircle,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Header } from '@/components/shared/header'
 import { Footer } from '@/components/shared/footer'
+import { formatSocialLink, SocialPlatformIcon } from '@/components/shared/social-platform-icon'
 import { SITE, COMMUNITY_LINKS } from '@/lib/content/site'
 import { TRACKS, TRACK_IDS, type TrackConfig } from '@/lib/content/tracks'
 
@@ -365,9 +365,9 @@ export function HomePage() {
                   rel="noopener noreferrer"
                   className="flex items-center justify-between px-3 py-2 md:px-4 md:py-2 bg-muted rounded-lg text-foreground text-xs md:text-sm hover:bg-muted/80 transition-colors"
                 >
-                  <span className="flex items-center gap-2">
-                    <MessageCircle className="w-3 h-3" />
-                    Join 4Seas Telegram
+                  <span className="flex min-w-0 items-center gap-2">
+                    <SocialPlatformIcon url={COMMUNITY_LINKS.telegram} className="size-3.5 shrink-0" />
+                    <span className="truncate">{formatSocialLink(COMMUNITY_LINKS.telegram)}</span>
                   </span>
                   <ArrowUpRight className="w-3 h-3" />
                 </a>
@@ -377,9 +377,9 @@ export function HomePage() {
                   rel="noopener noreferrer"
                   className="flex items-center justify-between px-3 py-2 md:px-4 md:py-2 bg-muted rounded-lg text-foreground text-xs md:text-sm hover:bg-muted/80 transition-colors"
                 >
-                  <span className="flex items-center gap-2">
-                    <MessageCircle className="w-3 h-3" />
-                    Follow 4Seas on X
+                  <span className="flex min-w-0 items-center gap-2">
+                    <SocialPlatformIcon url={COMMUNITY_LINKS.x} className="size-3.5 shrink-0" />
+                    <span className="truncate">{formatSocialLink(COMMUNITY_LINKS.x)}</span>
                   </span>
                   <ArrowUpRight className="w-3 h-3" />
                 </a>

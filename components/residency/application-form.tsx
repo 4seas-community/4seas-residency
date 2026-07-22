@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { formatSocialLink, SocialPlatformIcon } from '@/components/shared/social-platform-icon'
 import {
   Select,
   SelectContent,
@@ -156,7 +157,8 @@ export default function ApplicationForm({ track, startDateOptions }: Application
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-black/80 transition-colors text-sm"
             >
-              Follow on X
+              <SocialPlatformIcon url={COMMUNITY_LINKS.x} />
+              {formatSocialLink(COMMUNITY_LINKS.x)}
             </a>
             <a
               href={COMMUNITY_LINKS.telegram}
@@ -164,7 +166,8 @@ export default function ApplicationForm({ track, startDateOptions }: Application
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#0088cc] text-white rounded-lg hover:bg-[#0077b5] transition-colors text-sm"
             >
-              Join Telegram Group
+              <SocialPlatformIcon url={COMMUNITY_LINKS.telegram} />
+              {formatSocialLink(COMMUNITY_LINKS.telegram)}
             </a>
             <a
               href={COMMUNITY_LINKS.whatsapp}
@@ -172,7 +175,8 @@ export default function ApplicationForm({ track, startDateOptions }: Application
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
             >
-              Join WhatsApp Group
+              <SocialPlatformIcon url={COMMUNITY_LINKS.whatsapp} />
+              {formatSocialLink(COMMUNITY_LINKS.whatsapp)}
             </a>
           </div>
         </div>
