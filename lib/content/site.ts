@@ -8,6 +8,16 @@ export const COMMUNITY_LINKS = {
   ethchiangmai: 'https://www.ethchiangmai.com',
 }
 
+export const APPLICATION_PROCESS = [
+  { step: '01', title: 'Apply', description: 'Complete the form in about 10 minutes.' },
+  {
+    step: '02',
+    title: 'Review',
+    description: 'We review applications within one week and may invite you for a short interview.',
+  },
+  { step: '03', title: 'Decision', description: 'You’ll receive the final decision by email.' },
+] as const
+
 export const SITE = {
   name: '4Seas Residency',
   title: '4Seas Residency Programs | Chiang Mai',

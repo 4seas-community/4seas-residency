@@ -68,10 +68,10 @@ Ground Truths
 |---|---|---|---|---|
 | 1 | `/` | RSC（静态） | `lib/content/site.ts` + tracks 摘要 | 纯浏览；track 卡片按 `state` 显示 Now Open / Coming Soon 标签 |
 | 2 | `/residency/[track]` | RSC，`generateStaticParams`（3 个 track 预渲染） | `lib/content/tracks.ts` 对应切片 | 区块：Hero → WhatItIs → ResidencyCycle → ThemesWeCare → QuestionsWeExplore → WhatResidentsBring（longevity 用 grouped 变体）→ Footer；CTA 按 state：open→Apply / coming_soon→提示 / closed→提示 |
-| 3 | `/residency/[track]/apply` | RSC 外壳 + client 表单岛 | track 配置（标题/色/state）+ `start-dates.ts` | state=open 渲染 `<ApplicationForm>`；否则渲染关闭提示。表单：手写 useState、300 词计数、内联校验 → `submitApplication` → 成功态原地切换成功页 |
+| 3 | `/residency/[track]/apply` | RSC 外壳 + client 表单岛 | track 配置（标题/色/state）+ `site.ts` 统一三步流程 + `start-dates.ts` | state=open 时先展示 Apply → Review（可能面试）→ Decision，再渲染 `<ApplicationForm>`；提交成功后原地切换成功态。state 非 open 时渲染关闭提示 |
 | 4 | `/apply` | `redirect()` | — | 永久重定向到 `/residency/crypto/apply` |
-| 5 | `/admin/login` | RSC 外壳 + client 表单岛 | — | 密码 + 显示名 → `login` action → 成功 redirect `/admin` |
-| 6 | `/admin` | RSC（动态，每次请求读库）| `requireAdmin()` 门禁；`getDashboardData()` 全量（applications + notes + email_log） | client 岛 `<AdminDashboard>`：状态汇总卡、track/状态筛选、搜索、排序、行点击开详情 Sheet（信号集中呈现 + 留言 + 发信历史 + 状态下拉）；改状态到 interview/accepted/rejected 弹预览 Dialog（三按钮）；失败 toast + Retry |
+| 5 | `/admin/login` | RSC 外壳 + client 表单岛 | — | 共享密码 → `login` action（统一身份 `Admin`）→ 成功 redirect `/admin` |
+| 6 | `/admin` | RSC（动态，每次请求读库）| `requireAdmin()` 门禁；`getDashboardData()` 全量读取 applications + notes + email_log | client 岛 `<AdminDashboard>`：状态汇总、筛选/搜索/排序；行点击打开完整 Sheet，展示所有申请字段、状态控制、留言、发信历史与 Retry |
 | 7 | `not-found.tsx` / `loading.tsx` | 静态 | — | M5 补 |
 
 **共享组件**：`Header`（导航，唯一一份）、`Footer`（合并旧 repo 两份为一份）、track 区块组件（全部只接收 config 切片 props，零内嵌文案）、admin 子组件（表格/卡片、Sheet、StatusSelect、EmailPreviewDialog、NoteComposer、EmailLogList）。
@@ -110,14 +110,14 @@ submitApplication(input: {
 
 ```ts
 // lib/actions/admin.ts
-login(input: { password: string; displayName: string }): Promise<ActionResult>
+login(input: { password: string }): Promise<ActionResult>
 // 校验 ADMIN_PASSWORD(常数时间比较) + 登录限流 → 签发 session cookie。错误码: 'bad_password' | 'rate_limited'
 
 logout(): Promise<void>                      // 清 cookie，redirect /admin/login
 
 updateStatus(input: {
   applicationId: string
-  status: 'submitted' | 'reviewing' | 'interview' | 'accepted' | 'rejected'
+  status: 'submitted' | 'reviewing' | 'interview' | 'accepted' | 'rejected' | 'cancelled'
   sendEmail: boolean                         // 仅 interview/accepted/rejected 有意义
 }): Promise<ActionResult<{
   application: Application                   // 更新后的行(客户端 merge 用)
@@ -130,10 +130,10 @@ addNote(input: { applicationId: string; note: string }):
 
 resendEmail(input: { applicationId: string; emailType: EmailType }):
   Promise<ActionResult<{ outcome: 'sent' | 'failed'; error?: string }>>
-// 用申请当前数据重渲染重发，落新 log 行；triggered_by = session 显示名
+// 用申请当前数据重渲染重发，落新 log 行；triggered_by = 'Admin'
 ```
 
-**读接口**：`/admin` 是 RSC，直接调用 db 模块 `getDashboardData(): { applications, notesByApp, emailLogByApp }` 一次全量下发（<2k 行规模），**没有任何客户端可调用的读 action**——读不跨信任边界暴露。
+**读接口**：`/admin` 在通过认证后调用 `getDashboardData(): { applications, notes, emailLogs }`，一次下发列表与完整抽屉所需的数据（<2k 行规模）。它直接调用 server-only db 模块，**没有任何客户端可调用的读 action**。
 
 ### 4.3 Cron route（唯一 HTTP 端点）
 
@@ -233,7 +233,7 @@ alter table email_log enable row level security;
 │  ├─ apply/page.tsx                            # redirect
 │  ├─ residency/[track]/page.tsx                # 介绍页（generateStaticParams）
 │  ├─ residency/[track]/apply/page.tsx          # 申请页
-│  ├─ admin/login/page.tsx  admin/page.tsx      # 管理端
+│  ├─ admin/login/page.tsx  admin/page.tsx      # 管理端列表 + 完整申请抽屉
 │  └─ api/cron/movein-guide/route.ts            # 唯一 HTTP 端点
 ├─ components/
 │  ├─ shared/    header.tsx  footer.tsx
@@ -262,7 +262,7 @@ alter table email_log enable row level security;
 - **Honeypot**：表单渲染一个 CSS 隐藏的 `website` 字段；服务端见非空 → 返回 `{ ok: true }`，不落库不发信。
 - **Cron 幂等语义**：唯一性由「email_log 存在 outcome='sent' 的 movein_guide 行」定义；失败行不计入，次日自动重试；申请改出 accepted 自动脱离扫描；日期按 GMT+7 上午运行时的 `current_date` 计算。
 - **状态→邮件映射**：`interview→interview`、`accepted→accepted`、`rejected→rejected`（updateStatus 内固定映射）；`movein_guide` 只由 cron / resendEmail 触发。
-- **Dashboard 数据流**：RSC 全量下发 → client useState 持有 → 筛选/排序/搜索用移植的纯函数 → mutation 成功后用 action 返回的行做本地 merge（无 refetch、无乐观回滚复杂度）。
+- **Dashboard 数据流**：RSC 全量下发 applications、notes 与 email_log → client useState 持有 → 筛选/排序/搜索用纯函数 → 打开抽屉时按 application ID 选择关联数据 → mutation 成功后本地 merge。
 
 ## 9. 依赖清单
 

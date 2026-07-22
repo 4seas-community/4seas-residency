@@ -6,6 +6,7 @@
 - **交付形态**: 全新 repo，同栈重建（Next.js 16 App Router + React 19 + TypeScript + Tailwind v4 + shadcn/ui + framer-motion + Supabase + Resend + Vercel）
 
 **修订记录**
+- v2.2（2026-07-22）：管理端点击列表后在抽屉内展示完整申请、留言与发信历史，不新增独立详情页；申请页统一展示 Apply → Review（按需面试）→ Decision；申请成功继续使用表单内成功态；管理员操作统一署名 `Admin`；运行时状态补充 `cancelled`。
 - v2.1（2026-07-21）：入住指引定时方案经讨论确认采用**每日 cron（Vercel Cron 组件）**；补充查证依据——Resend 定时投递（scheduledAt）预约上限为 30 天（官方文档），无法覆盖常态的录取→入住间隔，故 scheduledAt 方案被正式否决；明确入住日恒为每月 1 号或 15 号。
 - v2（2026-07-21）：① 取消提交确认邮件（成功页承担即时确认）；② 取消同邮箱同 track 去重；③ 入住指引拆为独立邮件，入住日前 3 天自动送达（每日 cron）；④ 婉拒邮件沿用社区现有模板并附 coliving 居住折扣 promo code；⑤ 管理端认证从 Supabase Auth 独立账号改为共享长密码（服务端校验 + session cookie），Supabase 仅作数据库使用。
 - v1（2026-07-20）：初版。
@@ -34,13 +35,13 @@
 
 问题的本质是**一条筛选管道**：吸引对的人 → 收集足够判断 fit 的信号 → 高效决策 → 可靠地传达结果。据此重建：
 
-- **营销与申请（公开侧）**：首页 + 三条 track 介绍页 + 申请页。每条 track 有独立状态（open / coming-soon / closed），由统一内容配置驱动，介绍页 CTA 随之联动。申请无需注册登录，全程 ≤10 分钟；提交成功页即时确认（不发确认邮件）。
+- **营销与申请（公开侧）**：首页 + 三条 track 介绍页 + 申请页。每条 track 有独立状态（open / coming-soon / closed），由统一内容配置驱动，介绍页 CTA 随之联动。三条 track 在表单前统一说明 Apply → Review（可能邀请面试）→ Decision；申请无需注册登录，全程 ≤10 分钟；提交后在原表单位置显示成功态（不发确认邮件）。
 - **推送式结果通知（邮件，四类，纯英文）**：
   1. **面试邀请**——进入面试时发送，含约时间方式；
   2. **录取通知**——决策后立即发送，候选人尽早知道结果、安排行程；
   3. **入住指引**——独立邮件，入住日前 3 天由系统自动送达，含到达与入住信息，零人肉记日历；
   4. **婉拒**——沿用社区现有模板措辞，附 coliving 居住折扣 promo code，保留良性关系并给出替代路径。
-- **审核后台（管理侧）**：共享长密码登录（服务端校验，不再是前端密码门），列表 / 筛选 / 搜索 / 详情集中呈现判断信号，署名留言讨论，改状态时弹窗预览邮件后一键「更新并发送」。从打开后台到完成一次决策（含发信）≤1 分钟。
+- **审核后台（管理侧）**：共享长密码登录（服务端校验，不再是前端密码门），列表负责定位，点击申请后在抽屉内查看全部申请字段、留言与发信历史并完成状态操作；改状态时弹窗预览邮件后一键「更新并发送」。从打开后台到完成一次决策（含发信）≤1 分钟。
 - **安全底线**：匿名端零直连读写——所有数据操作经服务端唯一写边界；三张表 RLS 全拒；密钥只存在于服务端环境变量。
 
 **成功标准**：
@@ -79,15 +80,15 @@
 ### 管理员
 
 18. As a 管理员, I want 用一个共享的长随机密码登录后台（服务端校验、真实会话）, so that 后台不再是任何人开控制台就能绕过的前端密码门，同时无需维护账号体系。
-19. As a 管理员, I want 登录时填写自己的显示名, so that 我的留言与操作有署名可追溯。
+19. As a 管理员, I want 共享密码登录后的留言与操作统一署名为 `Admin`, so that 系统无需维护个人身份输入与账号体系。
 20. As a 未登录访问者, I want 访问后台时被重定向到登录页，且所有管理操作在服务端拒绝无会话请求, so that 不存在未认证的入口。
 21. As a 管理员, I want 打开后台第一眼看到申请列表与各状态汇总数, so that 新申请一目了然。
 22. As a 管理员, I want 按 track 与状态筛选、按姓名/邮箱/联系方式搜索, so that 我能快速定位目标申请。
 23. As a 管理员, I want 按提交时间等排序, so that 我按自己的节奏处理队列。
-24. As a 管理员, I want 点开申请后在详情面板集中看到全部判断信号（about、contribution、社交链接、入住时间等）, so that 我不需要在多处拼凑信息。
-25. As a 管理员, I want 在申请详情里署名留言, so that 我和搭档能异步讨论且知道是谁说的。
-26. As a 管理员, I want 看到搭档留下的全部留言, so that 决策讨论有完整上下文。
-27. As a 管理员, I want 沿 5 态状态机推进申请状态（submitted → reviewing → interview → accepted | rejected）, so that 流程与小团队实际决策节奏匹配。
+24. As a 管理员, I want 点开申请后直接在抽屉看到全部申请字段、社交链接、留言和邮件历史并可改状态, so that 我无需离开申请列表即可完成审核。
+25. As a 管理员, I want 在申请详情里以统一的 `Admin` 身份留言, so that 小团队能异步记录讨论结论。
+26. As a 管理员, I want 看到该申请的全部历史留言, so that 决策讨论有完整上下文。
+27. As a 管理员, I want 在 submitted / reviewing / interview / accepted / rejected / cancelled 六个状态间处理申请，且面试按需使用, so that 流程与小团队实际决策节奏匹配。
 28. As a 管理员, I want 改状态到 interview / accepted / rejected 时先弹窗预览将要发出的邮件全文, so that 我不担心手滑误发或发错内容（所见即所发）。
 29. As a 管理员, I want 预览弹窗有「更新并发送」「更新但不发送」「取消」三个选择, so that 对拿不准的申请可以先改状态、内部讨论后再统一发信。
 30. As a 管理员, I want 邮件发送失败时状态变更仍然生效并收到明确报错, so that 内部决策不被外部服务故障绑架。
@@ -125,8 +126,8 @@
 
 ### 管理端认证（共享长密码）
 
-- 单一长随机密码（≥32 字符）存于环境变量 `ADMIN_PASSWORD`；登录页输入密码 + 显示名（用于留言署名与操作审计）。
-- 服务端校验通过后签发 httpOnly 签名 session cookie（`SESSION_SECRET` 签名，含显示名与过期时间）；middleware 仅做体验层重定向，**安全边界在每个管理服务端入口内部的会话校验**。
+- 单一长随机密码（≥32 字符）存于环境变量 `ADMIN_PASSWORD`；登录页只输入密码，所有管理员操作统一署名为 `Admin`。
+- 服务端校验通过后签发 httpOnly 签名 session cookie（`SESSION_SECRET` 签名，含统一显示名与过期时间）；middleware 仅做体验层重定向，**安全边界在每个管理服务端入口内部的会话校验**。
 - 登录尝试做服务端限流，防暴力猜测。
 - 不建账号表、不用 Supabase Auth、无邮箱白名单。信任模型：1-3 名互相信任的管理员共享一个密码；泄露时轮换环境变量即可全局登出。
 
@@ -143,9 +144,10 @@
 ```
 submitted → reviewing → interview → accepted
                                   ↘ rejected
+任意阶段可由管理员标记 cancelled
 ```
 
-- 5 态：`submitted`、`reviewing`、`interview`、`accepted`、`rejected`。管理端下拉可直接设置任意状态（小团队信任模型，不强制线性推进）。
+- 6 态：`submitted`、`reviewing`、`interview`、`accepted`、`rejected`、`cancelled`。面试按需；管理端下拉可直接设置任意状态（小团队信任模型，不强制线性推进）。
 - 邮件触发映射：进入 `reviewing` 直接更新、无邮件；进入 `interview` / `accepted` / `rejected` 触发邮件预览弹窗（立即发送）；`movein_guide`（入住指引）不绑定状态跃迁，由定时任务按日期自动触发。
 - **邮件与状态解耦**：状态更新先落库，发信后置；发信失败状态仍生效。「改状态」是可撤回的内部操作，「发邮件」是不可撤回的对外承诺，两者不能无条件耦合。
 - 不迁移旧系统的 7+ 状态与 legacy 状态映射逻辑。
@@ -154,7 +156,7 @@ submitted → reviewing → interview → accepted
 
 | 表 | 字段要点 |
 |---|---|
-| **applications** | track、status（5 态 check 约束）、full_name、email、telegram_or_whatsapp、country、preferred_start_date、about、contribution、primary_link、linkedin、extra_link、content_studio_plans、ip_hash、status_changed_at / status_changed_by、created_at |
+| **applications** | track、status（6 态 check 约束）、full_name、email、telegram_or_whatsapp、country、preferred_start_date、about、contribution、primary_link、linkedin、extra_link、content_studio_plans、ip_hash、status_changed_at / status_changed_by、created_at |
 | **review_notes** | application_id、author_name（取自登录会话显示名）、note、created_at |
 | **email_log** | application_id、email_type（interview / accepted / rejected / movein_guide）、recipient、subject、outcome（sent / failed / skipped）、resend_id、error、triggered_by（管理员显示名或 `cron`）、created_at |
 
@@ -166,7 +168,7 @@ submitted → reviewing → interview → accepted
 2. honeypot 隐藏字段有值 → 返回假成功，不落库
 3. DB-backed 限流：ip_hash（加盐哈希，不存原始 IP）每小时 ≤3 次
 4. 入库（status = `submitted`）
-5. 前端渲染成功页（即时确认 + 审核时间预期 + 社群链接）
+5. 前端在原表单位置渲染成功态（即时确认 + 审核时间预期 + 按需面试说明 + 社群链接）
 
 **不发确认邮件、不做重复提交去重、不上验证码**。重复提交由管理员在后台按邮箱搜索自行甄别（月 <100 量级可承受）。
 
@@ -196,8 +198,8 @@ submitted → reviewing → interview → accepted
 | `/residency/[track]` | 介绍页，state 驱动 CTA（Apply / Coming Soon / Closed） |
 | `/residency/[track]/apply` | 申请页；state ≠ open 时渲染关闭提示，服务端再校验 |
 | `/apply` | redirect → crypto 申请页（保留旧链接） |
-| `/admin/login` | 管理员登录（密码 + 显示名） |
-| `/admin` | 审核后台（列表 + 筛选 + 详情面板，沿用旧项目交互模式） |
+| `/admin/login` | 管理员登录（共享密码，统一身份 `Admin`） |
+| `/admin` | 审核后台列表 + 筛选 + 完整申请抽屉（状态、留言与发信历史） |
 | 定时路由 | 入住指引每日扫描（Vercel Cron 触发，`CRON_SECRET` 保护，Asia/Bangkok 上午执行） |
 
 ### 里程碑

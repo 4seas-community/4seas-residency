@@ -144,8 +144,9 @@ export default function ApplicationForm({ track, startDateOptions }: Application
         </div>
         <h2 className="text-3xl font-bold text-foreground mb-4">Application Submitted!</h2>
         <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-          Thank you for applying to {track.name}. We will review your application and notify you of the result within
-          one week via the contact information you provided.
+          Thank you for applying to {track.name}. We&apos;ve received your application and will review it within one
+          week. If we&apos;d like to learn more, we&apos;ll contact you to arrange a short interview. You&apos;ll receive
+          the final decision by email.
         </p>
 
         <div className="bg-muted/50 rounded-lg p-6 max-w-md mx-auto mb-8">
@@ -190,41 +191,14 @@ export default function ApplicationForm({ track, startDateOptions }: Application
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8">
-      {/* Process and duration — longevity only */}
+      {/* Track-specific duration — the shared application process appears above the form. */}
       {track.apply.showProcessSection && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-6 py-4 border-b border-border" style={{ backgroundColor: `${track.accentColor}15` }}>
-            <h2 className="text-base font-semibold text-foreground">Process &amp; Duration</h2>
+            <h2 className="text-base font-semibold text-foreground">Residency Duration</h2>
           </div>
-          <div className="px-6 py-5 space-y-6">
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Application Process
-              </h3>
-              <ol className="space-y-2">
-                {[
-                  'Submit the application form (including personal background, portfolio/projects, and planned output during the residency)',
-                  'Online interview',
-                  'Selection notification',
-                ].map((step, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span
-                      className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5"
-                      style={{ backgroundColor: track.accentColor }}
-                    >
-                      {i + 1}
-                    </span>
-                    <span className="text-sm text-foreground leading-relaxed">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Residency Duration
-              </h3>
-              <p className="text-sm text-foreground">At least one month</p>
-            </div>
+          <div className="px-6 py-5">
+            <p className="text-sm text-foreground">At least one month</p>
           </div>
         </div>
       )}

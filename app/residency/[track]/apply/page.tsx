@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import ApplicationForm from '@/components/residency/application-form'
+import { ApplicationProcess } from '@/components/residency/application-process'
 import { Header } from '@/components/shared/header'
 import { Footer } from '@/components/shared/footer'
 import { Button } from '@/components/ui/button'
@@ -35,10 +36,13 @@ export default async function ApplyPage({ params }: { params: Promise<{ track: s
 
       <div className="max-w-4xl mx-auto px-4 py-12">
         {track.state === 'open' ? (
-          <ApplicationForm
-            track={{ id: track.id, name: track.name, accentColor: track.accentColor, apply: track.apply }}
-            startDateOptions={getStartDateOptions()}
-          />
+          <>
+            <ApplicationProcess />
+            <ApplicationForm
+              track={{ id: track.id, name: track.name, accentColor: track.accentColor, apply: track.apply }}
+              startDateOptions={getStartDateOptions()}
+            />
+          </>
         ) : (
           <div className="max-w-xl mx-auto text-center py-12">
             <span

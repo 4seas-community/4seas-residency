@@ -58,3 +58,47 @@ export function SocialPlatformIcon({ url, className = 'size-4' }: SocialPlatform
 export function formatSocialLink(url: string) {
   return url.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
 }
+
+/** Compact label for applicant links: account name for known networks, domain otherwise. */
+export function getSocialLinkLabel(url: string): string {
+  let parsed: URL
+  try {
+    parsed = new URL(url.includes('://') ? url : `https://${url}`)
+  } catch {
+    return 'Website'
+  }
+
+  const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '')
+  const segments = parsed.pathname
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment)
+      } catch {
+        return segment
+      }
+    })
+  const isDomain = (domain: string) => hostname === domain || hostname.endsWith(`.${domain}`)
+  const firstAccount = segments[0]?.replace(/^@/, '')
+
+  if (isDomain('x.com') || isDomain('twitter.com')) {
+    return firstAccount && !['home', 'search', 'explore', 'intent', 'share'].includes(firstAccount)
+      ? `@${firstAccount}`
+      : 'X'
+  }
+  if (isDomain('github.com')) return firstAccount ? `@${firstAccount}` : 'GitHub'
+  if (isDomain('instagram.com')) return firstAccount && firstAccount !== 'p' ? `@${firstAccount}` : 'Instagram'
+  if (isDomain('t.me') || isDomain('telegram.me')) return firstAccount ? `@${firstAccount}` : 'Telegram'
+  if (isDomain('linkedin.com')) return segments[1] || 'LinkedIn'
+  if (isDomain('youtube.com')) {
+    if (segments[0]?.startsWith('@')) return segments[0]
+    if (['channel', 'c', 'user'].includes(segments[0] ?? '') && segments[1]) return `@${segments[1]}`
+    return 'YouTube'
+  }
+  if (isDomain('youtu.be')) return 'YouTube'
+  if (isDomain('facebook.com') || isDomain('fb.com')) return firstAccount || 'Facebook'
+  if (isDomain('whatsapp.com') || isDomain('wa.me')) return 'WhatsApp'
+
+  return hostname || 'Website'
+}
