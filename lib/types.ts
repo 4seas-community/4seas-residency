@@ -13,6 +13,8 @@ export const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: st
   cancelled: { label: 'Cancelled', color: 'text-[var(--status-cancelled-text)]', bgColor: 'bg-[var(--status-cancelled-bg)]' },
 }
 
+export type ContactMethod = 'telegram' | 'whatsapp'
+
 export type EmailType = 'interview' | 'accepted' | 'rejected' | 'movein_guide'
 export type EmailOutcome = 'sent' | 'failed' | 'skipped'
 
@@ -30,6 +32,7 @@ export interface Application {
   full_name: string
   email: string
   telegram_or_whatsapp: string
+  contact_method: ContactMethod | null
   country: string
   preferred_start_date: string // 'YYYY-MM-DD'
   about: string

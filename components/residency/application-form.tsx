@@ -30,6 +30,7 @@ interface ApplicationFormProps {
 interface FormData {
   fullName: string
   email: string
+  contactMethod: 'telegram' | 'whatsapp'
   telegramOrWhatsapp: string
   country: string
   preferredStartDate: string
@@ -45,6 +46,7 @@ interface FormData {
 const initialFormData: FormData = {
   fullName: '',
   email: '',
+  contactMethod: 'telegram',
   telegramOrWhatsapp: '',
   country: '',
   preferredStartDate: '',
@@ -77,7 +79,10 @@ function validate(data: FormData): FieldErrors {
   const errors: FieldErrors = {}
   if (!data.fullName.trim()) errors.fullName = 'Please enter your name'
   if (!EMAIL_RE.test(data.email.trim())) errors.email = 'Please enter a valid email address'
-  if (!data.telegramOrWhatsapp.trim()) errors.telegramOrWhatsapp = 'Please provide a WhatsApp or Telegram contact'
+  if (!data.telegramOrWhatsapp.trim()) {
+    errors.telegramOrWhatsapp =
+      data.contactMethod === 'whatsapp' ? 'Please enter your WhatsApp number' : 'Please enter your Telegram username'
+  }
   if (!data.preferredStartDate) errors.preferredStartDate = 'Please select a start date'
   if (!data.country.trim()) errors.country = 'Please select your country'
   if (!data.about.trim()) errors.about = 'Please tell us about yourself'
@@ -99,7 +104,7 @@ export default function ApplicationForm({ track, startDateOptions }: Application
   const [errors, setErrors] = useState<FieldErrors>({})
   const [serverError, setServerError] = useState<string | null>(null)
 
-  const handleInputChange = (field: keyof FormData, value: string) => {
+  const handleInputChange = <K extends keyof FormData>(field: K, value: FormData[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev))
     setServerError(null)
@@ -254,14 +259,37 @@ export default function ApplicationForm({ track, startDateOptions }: Application
 
         <div className="space-y-2">
           <Label htmlFor={fieldId('telegramOrWhatsapp')}>
-            WhatsApp or Telegram <span className="text-red-500">*</span>
+            Contact <span className="text-red-500">*</span>
           </Label>
+          <div className="flex gap-2">
+            {(['telegram', 'whatsapp'] as const).map((method) => (
+              <button
+                key={method}
+                type="button"
+                aria-pressed={formData.contactMethod === method}
+                onClick={() => {
+                  handleInputChange('contactMethod', method)
+                  setErrors((prev) => (prev.telegramOrWhatsapp ? { ...prev, telegramOrWhatsapp: undefined } : prev))
+                }}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  formData.contactMethod === method
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {method === 'telegram' ? 'Telegram' : 'WhatsApp'}
+              </button>
+            ))}
+          </div>
           <Input
             id={fieldId('telegramOrWhatsapp')}
+            type={formData.contactMethod === 'whatsapp' ? 'tel' : 'text'}
+            inputMode={formData.contactMethod === 'whatsapp' ? 'tel' : undefined}
+            autoComplete={formData.contactMethod === 'whatsapp' ? 'tel' : 'off'}
             aria-invalid={!!errors.telegramOrWhatsapp || undefined}
             value={formData.telegramOrWhatsapp}
             onChange={(e) => handleInputChange('telegramOrWhatsapp', e.target.value)}
-            placeholder="@username or +1234567890"
+            placeholder={formData.contactMethod === 'whatsapp' ? '+66 81 234 5678' : '@username'}
           />
           <FieldError message={errors.telegramOrWhatsapp} />
         </div>

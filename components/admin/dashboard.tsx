@@ -252,13 +252,13 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
           {visible.length === 0 ? (
             <p className="p-10 text-center text-sm text-[var(--admin-faint)]">No applications match these filters.</p>
           ) : (
-            <Table>
+            <Table className="table-fixed sm:table-auto">
               <TableHeader className="bg-[var(--admin-ink)]">
                 <TableRow className="border-[var(--admin-border)] hover:bg-transparent">
                   <TableHead>Applicant</TableHead>
                   <TableHead className="hidden sm:table-cell">Track</TableHead>
                   <TableHead className="hidden sm:table-cell">Preferred start</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="w-28 sm:w-auto">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -271,7 +271,7 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
                     }`}
                   >
                     <TableCell>
-                      <div className="flex min-w-0 items-baseline gap-2">
+                      <div className="flex min-w-0 flex-col gap-x-2 sm:flex-row sm:items-baseline">
                         <button
                           type="button"
                           onClick={() => setSelectedId(app.id)}

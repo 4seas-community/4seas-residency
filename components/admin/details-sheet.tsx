@@ -128,7 +128,31 @@ function ApplicationDetails({
             {application.email}
           </a>
         </Field>
-        <Field label="WhatsApp / Telegram">{application.telegram_or_whatsapp}</Field>
+        {application.contact_method === 'telegram' ? (
+          <Field label="Telegram">
+            <a
+              href={`https://t.me/${application.telegram_or_whatsapp.replace(/^@/, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all text-[var(--admin-accent)] hover:underline"
+            >
+              {application.telegram_or_whatsapp}
+            </a>
+          </Field>
+        ) : application.contact_method === 'whatsapp' ? (
+          <Field label="WhatsApp">
+            <a
+              href={`https://wa.me/${application.telegram_or_whatsapp.replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all text-[var(--admin-accent)] hover:underline"
+            >
+              {application.telegram_or_whatsapp}
+            </a>
+          </Field>
+        ) : (
+          <Field label="WhatsApp / Telegram">{application.telegram_or_whatsapp}</Field>
+        )}
         <Field label="Country">{application.country}</Field>
         <Field label="Preferred start date">{application.preferred_start_date}</Field>
       </div>

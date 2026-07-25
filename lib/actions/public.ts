@@ -15,6 +15,7 @@ const applicationSchema = z.object({
   fullName: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(320),
   telegramOrWhatsapp: z.string().trim().min(1).max(200),
+  contactMethod: z.enum(['telegram', 'whatsapp']),
   country: z.string().trim().min(1).max(120),
   preferredStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   about: z
@@ -74,6 +75,7 @@ export async function submitApplication(input: ApplicationInput): Promise<Action
     full_name: data.fullName,
     email: data.email,
     telegram_or_whatsapp: data.telegramOrWhatsapp,
+    contact_method: data.contactMethod,
     country: data.country,
     preferred_start_date: data.preferredStartDate,
     about: data.about,

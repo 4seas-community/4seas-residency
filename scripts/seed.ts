@@ -56,7 +56,8 @@ async function main() {
       full_name: name,
       // Resend's official test inbox — deliverable, lands nowhere real
       email: `delivered+seed-${i + 1}@resend.dev`,
-      telegram_or_whatsapp: `@seed_user_${i + 1}`,
+      contact_method: i % 2 === 0 ? 'telegram' : 'whatsapp',
+      telegram_or_whatsapp: i % 2 === 0 ? `@seed_user_${i + 1}` : `+66 81 234 5${String(i).padStart(3, '0')}`,
       country: ['Portugal', 'China', 'Ireland', 'Italy', 'India', 'Japan'][i % 6],
       preferred_start_date: startDate(withinCronWindow ? 2 : null, i),
       about: `I am ${name}, a ${track} enthusiast exploring how community and technology intersect. (seeded application #${i + 1})`,
