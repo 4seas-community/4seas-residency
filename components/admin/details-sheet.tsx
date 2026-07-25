@@ -53,7 +53,7 @@ function EmailLogPreview({ log, application }: { log: EmailLog; application: App
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--admin-faint)]">{label}</p>
+      <p className="mb-1 text-xs font-medium text-[var(--admin-faint)]">{label}</p>
       <div className="text-sm text-[var(--admin-text)]">{children}</div>
     </div>
   )

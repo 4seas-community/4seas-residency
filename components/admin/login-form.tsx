@@ -34,7 +34,7 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--admin-faint)]">Password</Label>
+        <Label className="text-xs font-medium text-[var(--admin-faint)]">Password</Label>
         <Input
           type="password"
           value={password}
