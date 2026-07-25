@@ -32,19 +32,20 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label>Password</Label>
+        <Label className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--admin-faint)]">Password</Label>
         <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Admin password"
           autoComplete="current-password"
+          className="h-11 border-[var(--admin-border)] bg-[var(--admin-ink)] text-[var(--admin-text)] placeholder:text-[var(--admin-faint)] focus-visible:ring-[var(--admin-accent)]"
         />
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" disabled={isSubmitting || !password} className="w-full">
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      <Button type="submit" disabled={isSubmitting || !password} className="h-11 w-full bg-[var(--admin-accent)] font-semibold text-[var(--admin-ink)] hover:bg-[var(--admin-accent-hover)]">
         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sign in'}
       </Button>
     </form>

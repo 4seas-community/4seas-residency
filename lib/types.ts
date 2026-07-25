@@ -4,13 +4,13 @@ export const ALL_STATUSES = ['submitted', 'reviewing', 'interview', 'accepted', 
 export type ApplicationStatus = (typeof ALL_STATUSES)[number]
 
 export const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; bgColor: string }> = {
-  submitted: { label: 'Submitted', color: 'text-blue-700', bgColor: 'bg-blue-100' },
-  reviewing: { label: 'Reviewing', color: 'text-amber-700', bgColor: 'bg-amber-100' },
-  interview: { label: 'Interview', color: 'text-orange-700', bgColor: 'bg-orange-100' },
-  accepted: { label: 'Accepted', color: 'text-green-700', bgColor: 'bg-green-100' },
-  rejected: { label: 'Rejected', color: 'text-red-700', bgColor: 'bg-red-100' },
+  submitted: { label: 'Submitted', color: 'text-[var(--status-submitted-text)]', bgColor: 'bg-[var(--status-submitted-bg)]' },
+  reviewing: { label: 'Reviewing', color: 'text-[var(--status-reviewing-text)]', bgColor: 'bg-[var(--status-reviewing-bg)]' },
+  interview: { label: 'Interview', color: 'text-[var(--status-interview-text)]', bgColor: 'bg-[var(--status-interview-bg)]' },
+  accepted: { label: 'Accepted', color: 'text-[var(--status-accepted-text)]', bgColor: 'bg-[var(--status-accepted-bg)]' },
+  rejected: { label: 'Rejected', color: 'text-[var(--status-rejected-text)]', bgColor: 'bg-[var(--status-rejected-bg)]' },
   // Candidate-initiated exit (declined offer / cancelled interview / no-show). No email, terminal.
-  cancelled: { label: 'Cancelled', color: 'text-slate-600', bgColor: 'bg-slate-100' },
+  cancelled: { label: 'Cancelled', color: 'text-[var(--status-cancelled-text)]', bgColor: 'bg-[var(--status-cancelled-bg)]' },
 }
 
 export type EmailType = 'interview' | 'accepted' | 'rejected' | 'movein_guide'

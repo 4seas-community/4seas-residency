@@ -15,7 +15,8 @@ export function normalizeUrl(url: string): string {
 
 /** Format an ISO datetime string in the GMT+7 (Asia/Bangkok) timezone. */
 export function formatDateTimeGMT7(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('en-US', {
+  // sv-SE renders `YYYY-MM-DD HH:mm`, matching preferred_start_date's format
+  return new Date(dateStr).toLocaleString('sv-SE', {
     timeZone: 'Asia/Bangkok',
     year: 'numeric',
     month: '2-digit',

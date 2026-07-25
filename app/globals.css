@@ -4,6 +4,27 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --admin-ink: #f4f5ef;
+  --admin-panel: #ffffff;
+  --admin-text: #173236;
+  --admin-accent: #477d6a;
+  --admin-accent-hover: #356956;
+  --admin-muted: #60746d;
+  --admin-faint: #8da098;
+  --admin-border: rgba(23, 50, 54, 0.13);
+  --admin-soft: #e8f0ea;
+  --status-submitted-bg: #e7eff9;
+  --status-submitted-text: #2b5278;
+  --status-reviewing-bg: #f5efdf;
+  --status-reviewing-text: #73591e;
+  --status-interview-bg: #f7e9df;
+  --status-interview-text: #875634;
+  --status-accepted-bg: #e5f0e8;
+  --status-accepted-text: #31634a;
+  --status-rejected-bg: #f5e6e6;
+  --status-rejected-text: #843d42;
+  --status-cancelled-bg: #edf0ef;
+  --status-cancelled-text: #586561;
   /* Warm cream background - matching 4seas.xyz */
   --background: oklch(0.96 0.015 90);
   --foreground: oklch(0.20 0.02 170);
@@ -57,6 +78,27 @@
 }
 
 .dark {
+  --admin-ink: #071d21;
+  --admin-panel: #0d2b30;
+  --admin-text: #edf3e7;
+  --admin-accent: #a8d9c2;
+  --admin-accent-hover: #c0e4d1;
+  --admin-muted: #b9c9c0;
+  --admin-faint: #9ab1a6;
+  --admin-border: rgba(255, 255, 255, 0.1);
+  --admin-soft: #11363a;
+  --status-submitted-bg: #153348;
+  --status-submitted-text: #b6d4ee;
+  --status-reviewing-bg: #3a311d;
+  --status-reviewing-text: #ead8a0;
+  --status-interview-bg: #40291f;
+  --status-interview-text: #efc3a9;
+  --status-accepted-bg: #183a2d;
+  --status-accepted-text: #b6dfc5;
+  --status-rejected-bg: #42262a;
+  --status-rejected-text: #f1bfc2;
+  --status-cancelled-bg: #293536;
+  --status-cancelled-text: #c3ceca;
   --background: oklch(0.18 0.02 170);
   --foreground: oklch(0.95 0.01 90);
   --card: oklch(0.22 0.02 170);
