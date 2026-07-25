@@ -134,25 +134,34 @@ export async function addNote(input: { applicationId: string; note: string }): P
 export async function resendEmail(input: {
   applicationId: string
   emailType: EmailType
+  emailOverride?: EmailOverride
 }): Promise<ActionResult<{ outcome: 'sent' | 'failed'; error?: string }>> {
   const session = await requireAdmin()
 
   const { data, error } = await db().from('applications').select('*').eq('id', input.applicationId).single()
   if (error || !data) return { ok: false, error: 'server', message: 'Application not found.' }
 
-  // Retry resends what was last on screen: the most recent log row for this email
-  // type carries body_text when the admin edited it; null means template verbatim.
-  const { data: lastLog } = await db()
-    .from('email_log')
-    .select('subject, body_text')
-    .eq('application_id', input.applicationId)
-    .eq('email_type', input.emailType)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  const override: EmailOverride | undefined = lastLog?.body_text
-    ? { subject: lastLog.subject, text: lastLog.body_text }
-    : undefined
+  let override: EmailOverride | undefined
+  if (input.emailOverride) {
+    // Edited in the resend dialog — send exactly what the admin previewed.
+    const parsed = emailOverrideSchema.safeParse(input.emailOverride)
+    if (!parsed.success) {
+      return { ok: false, error: 'validation', message: 'Edited email needs a subject and a body.' }
+    }
+    override = parsed.data
+  } else {
+    // Retry resends what was last on screen: the most recent log row for this email
+    // type carries body_text when the admin edited it; null means template verbatim.
+    const { data: lastLog } = await db()
+      .from('email_log')
+      .select('subject, body_text')
+      .eq('application_id', input.applicationId)
+      .eq('email_type', input.emailType)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    override = lastLog?.body_text ? { subject: lastLog.subject, text: lastLog.body_text } : undefined
+  }
 
   const result = await sendApplicationEmail({
     application: data as Application,

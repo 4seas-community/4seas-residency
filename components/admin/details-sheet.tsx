@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ApplicationLink } from '@/components/admin/application-link'
+import { ResendEmailDialog } from '@/components/admin/email-preview-dialog'
 import { getEmailContent, renderCustomEmail } from '@/lib/email/templates'
 import { TRACKS } from '@/lib/content/tracks'
 import { STATUS_CONFIG, ALL_STATUSES } from '@/lib/types'
-import type { Application, ApplicationStatus, EmailLog, ReviewNote } from '@/lib/types'
+import type { Application, ApplicationStatus, EmailLog, EmailOverride, ReviewNote } from '@/lib/types'
 import { formatDateTimeGMT7 } from '@/lib/applications/utils'
 
 interface ApplicationDetailsProps {
@@ -20,7 +21,7 @@ interface ApplicationDetailsProps {
   emailLogs: EmailLog[]
   onStatusSelect: (status: ApplicationStatus) => void
   onAddNote: (note: string) => Promise<boolean>
-  onRetryEmail: (log: EmailLog) => Promise<void>
+  onRetryEmail: (log: EmailLog, override?: EmailOverride) => Promise<void>
 }
 
 interface DetailsSheetProps extends ApplicationDetailsProps {
@@ -76,6 +77,7 @@ function ApplicationDetails({
   const [isAddingNote, setIsAddingNote] = useState(false)
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
+  const [resendLog, setResendLog] = useState<EmailLog | null>(null)
   const track = TRACKS[application.track]
   const nextAction = NEXT_STATUS[application.status]
 
@@ -202,16 +204,7 @@ function ApplicationDetails({
                     variant="outline"
                     className="border-[var(--admin-border)] bg-transparent text-[var(--admin-text)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)]"
                     disabled={retryingId === log.id}
-                    onClick={async () => {
-                      if (
-                        log.outcome === 'sent' &&
-                        !window.confirm(`Send this email to ${log.recipient} again?`)
-                      )
-                        return
-                      setRetryingId(log.id)
-                      await onRetryEmail(log)
-                      setRetryingId(null)
-                    }}
+                    onClick={() => setResendLog(log)}
                   >
                     {retryingId === log.id ? (
                       <Loader2 className="size-3.5 animate-spin" />
@@ -254,6 +247,21 @@ function ApplicationDetails({
           </Button>
         </div>
       </div>
+
+      {resendLog && (
+        <ResendEmailDialog
+          application={application}
+          log={resendLog}
+          isPending={retryingId === resendLog.id}
+          onConfirm={async (override) => {
+            setRetryingId(resendLog.id)
+            await onRetryEmail(resendLog, override)
+            setRetryingId(null)
+            setResendLog(null)
+          }}
+          onCancel={() => setResendLog(null)}
+        />
+      )}
     </div>
   )
 }

@@ -142,9 +142,9 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
     return true
   }
 
-  const handleRetryEmail = async (log: EmailLog) => {
+  const handleRetryEmail = async (log: EmailLog, override?: EmailOverride) => {
     if (!selected) return
-    const result = await resendEmail({ applicationId: selected.id, emailType: log.email_type })
+    const result = await resendEmail({ applicationId: selected.id, emailType: log.email_type, emailOverride: override })
     if (!result.ok) {
       toast.error(result.message ?? 'Failed to send email.')
       return
@@ -153,8 +153,8 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
       email_type: log.email_type,
       outcome: result.outcome,
       error: result.error,
-      subject: log.subject,
-      body_text: log.body_text,
+      subject: override?.subject ?? log.subject,
+      body_text: override?.text ?? log.body_text,
     })
     if (result.outcome === 'sent') toast.success('Email sent.')
     else toast.error(`Email failed: ${result.error ?? 'unknown error'}`)
