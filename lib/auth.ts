@@ -53,7 +53,9 @@ export async function readSession(): Promise<AdminSession | null> {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString())
     if (typeof data.displayName !== 'string' || typeof data.expiresAt !== 'number') return null
     if (Date.now() > data.expiresAt) return null
-    return { displayName: data.displayName }
+    // Single shared admin identity: ignore the stored name so legacy cookies
+    // (created when login collected a personal name) also display/attribute as Admin.
+    return { displayName: 'Admin' }
   } catch {
     return null
   }

@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { getEmailContent, renderCustomEmail, type EmailContent } from '@/lib/email/templates'
 import type { Application, ApplicationStatus, EmailLog, EmailOverride, EmailType } from '@/lib/types'
 import { STATUS_CONFIG } from '@/lib/types'
+import { decisionVariantLabel } from '@/lib/applications/utils'
 
 const STATUS_EMAIL: Partial<Record<ApplicationStatus, EmailType>> = {
   interview: 'interview',
@@ -147,20 +148,40 @@ function EmailComposerDialog({
 interface EmailPreviewDialogProps {
   application: Application
   targetStatus: ApplicationStatus
+  /** Always a concrete boolean when targetStatus is accepted/rejected; undefined for interview. */
+  decidedAfterInterview?: boolean
   isPending: boolean
   onConfirm: (sendEmail: boolean, override?: EmailOverride) => void
   onCancel: () => void
 }
 
 // Status-transition flow: confirm updates the status with or without the email.
-export function EmailPreviewDialog({ application, targetStatus, isPending, onConfirm, onCancel }: EmailPreviewDialogProps) {
+export function EmailPreviewDialog({
+  application,
+  targetStatus,
+  decidedAfterInterview,
+  isPending,
+  onConfirm,
+  onCancel,
+}: EmailPreviewDialogProps) {
+  // Preview the variant the admin picked BEFORE the row is updated — the server
+  // writes decided_after_interview in the same update that triggers the send,
+  // so rendering from this projection preserves preview = send.
+  const previewApplication = useMemo<Application>(
+    () => ({ ...application, decided_after_interview: decidedAfterInterview ?? application.decided_after_interview }),
+    [application, decidedAfterInterview],
+  )
   const emailType = STATUS_EMAIL[targetStatus]
   if (!emailType) return null
+  const title =
+    targetStatus === 'accepted' || targetStatus === 'rejected'
+      ? `Set status to “${STATUS_CONFIG[targetStatus].label}” · ${decisionVariantLabel(targetStatus, decidedAfterInterview ?? null)}`
+      : `Set status to “${STATUS_CONFIG[targetStatus].label}”`
   return (
     <EmailComposerDialog
-      application={application}
+      application={previewApplication}
       emailType={emailType}
-      title={`Set status to “${STATUS_CONFIG[targetStatus].label}”`}
+      title={title}
       description={
         <>
           The email below will be sent to{' '}

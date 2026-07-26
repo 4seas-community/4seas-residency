@@ -22,7 +22,7 @@ pnpm seed           # insert 20 fake applications (needs .env.local)
 
 ## Setup (external steps)
 
-1. **Supabase**: create a new project → run the files in `supabase/migrations/` **in order** (001 → 002 → 003) in the SQL editor. Copy the project URL and service-role key.
+1. **Supabase**: create a new project → run the files in `supabase/migrations/` **in order** (001 → 005) in the SQL editor. Copy the project URL and service-role key.
 2. **Resend**: create an API key. For production, verify your sending domain and set `EMAIL_FROM` accordingly (e.g. `4Seas Residency <residency@mail.yourdomain.com>`).
 3. **Secrets**: generate long random values for `ADMIN_PASSWORD`, `SESSION_SECRET`, `IP_HASH_SALT`, `CRON_SECRET` (e.g. `openssl rand -base64 32`).
 4. **Local**: copy `.env.example` → `.env.local` and fill it in.

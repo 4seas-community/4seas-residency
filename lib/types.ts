@@ -4,7 +4,7 @@ export const ALL_STATUSES = ['submitted', 'reviewing', 'interview', 'accepted', 
 export type ApplicationStatus = (typeof ALL_STATUSES)[number]
 
 export const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; bgColor: string }> = {
-  submitted: { label: 'Submitted', color: 'text-[var(--status-submitted-text)]', bgColor: 'bg-[var(--status-submitted-bg)]' },
+  submitted: { label: 'New', color: 'text-[var(--status-submitted-text)]', bgColor: 'bg-[var(--status-submitted-bg)]' },
   reviewing: { label: 'Reviewing', color: 'text-[var(--status-reviewing-text)]', bgColor: 'bg-[var(--status-reviewing-bg)]' },
   interview: { label: 'Interview', color: 'text-[var(--status-interview-text)]', bgColor: 'bg-[var(--status-interview-bg)]' },
   accepted: { label: 'Accepted', color: 'text-[var(--status-accepted-text)]', bgColor: 'bg-[var(--status-accepted-bg)]' },
@@ -35,6 +35,12 @@ export interface Application {
   contact_method: ContactMethod | null
   country: string
   preferred_start_date: string // 'YYYY-MM-DD'
+  /** Admin-confirmed move-in date ('YYYY-MM-DD'); preferred_start_date is never overwritten. */
+  confirmed_start_date: string | null
+  /** Interview time (ISO); interview sub-stages are derived from this vs now, never stored. */
+  interview_scheduled_at: string | null
+  /** Set only while status is accepted/rejected; null = legacy/direct decision. */
+  decided_after_interview: boolean | null
   about: string
   contribution: string
   primary_link: string

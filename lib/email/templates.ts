@@ -12,6 +12,9 @@ export interface EmailContent {
   text: string
 }
 
+// ponytail: placeholder code — swap for the real one when the user provides it.
+const INTERVIEW_REJECT_PROMO_CODE = '4SEAS-REAPPLY'
+
 function formatStartDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
   const months = [
@@ -74,7 +77,8 @@ export function getEmailContent(type: EmailType, application: Application): Emai
   const track = TRACKS[application.track]
   const trackName = track?.name ?? 'Residency'
   const firstName = application.full_name.trim().split(/\s+/)[0] || application.full_name
-  const startDate = formatStartDate(application.preferred_start_date)
+  // Effective move-in date: admin-confirmed when set, applicant's preference otherwise.
+  const startDate = formatStartDate(application.confirmed_start_date ?? application.preferred_start_date)
 
   switch (type) {
     case 'interview': {
@@ -127,10 +131,17 @@ export function getEmailContent(type: EmailType, application: Application): Emai
       // ponytail: placeholder wording — the community's existing rejection template
       // copy will replace the middle paragraphs before M5 launch.
       const subject = `Your 4Seas ${trackName} application`
+      // After-interview rejections carry an extra thank-you + discount code.
+      const afterInterview = application.decided_after_interview === true
       const bodyText = [
         `Hi ${firstName},`,
         `Thank you for applying to the 4Seas ${trackName}. After careful review, we're unable to offer you a spot in this cycle.`,
         `This is mostly a matter of fit and limited space for each cycle — we'd genuinely love to see you apply again in a future cycle.`,
+        ...(afterInterview
+          ? [
+              `Thank you for taking the time to interview with us — as a small thank-you, use the code ${INTERVIEW_REJECT_PROMO_CODE} for an extra discount on any future stay.`,
+            ]
+          : []),
         `In the meantime, you're warmly welcome to stay with us as a coliving guest in Chiang Mai. Use the code ${COLIVING_PROMO_CODE} for a discount on your coliving stay.`,
         `Stay in touch with the community on Telegram: ${COMMUNITY_LINKS.telegram}`,
         `Warmly,\nThe 4Seas Team`,
@@ -142,6 +153,9 @@ export function getEmailContent(type: EmailType, application: Application): Emai
           p(`Hi ${firstName},`) +
             p(`Thank you for applying to the <strong>4Seas ${trackName}</strong>. After careful review, we're unable to offer you a spot in this cycle.`) +
             p(`This is mostly a matter of fit and limited space for each cycle — we'd genuinely love to see you apply again in a future cycle.`) +
+            (afterInterview
+              ? p(`Thank you for taking the time to interview with us — as a small thank-you, use the code <strong>${INTERVIEW_REJECT_PROMO_CODE}</strong> for an extra discount on any future stay.`)
+              : '') +
             p(`In the meantime, you're warmly welcome to stay with us as a coliving guest in Chiang Mai. Use the code <strong>${COLIVING_PROMO_CODE}</strong> for a discount on your coliving stay.`) +
             p(`Stay in touch with the community on <a href="${COMMUNITY_LINKS.telegram}" style="color:#0A6B5A;">Telegram</a>.`) +
             p(`Warmly,<br/>The 4Seas Team`)

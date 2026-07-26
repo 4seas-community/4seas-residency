@@ -64,6 +64,8 @@ export async function updateStatus(input: {
   status: ApplicationStatus
   sendEmail: boolean
   emailOverride?: EmailOverride
+  /** Accept/Reject variant; when omitted, derived from interview_scheduled_at being in the past. */
+  decidedAfterInterview?: boolean
 }): Promise<ActionResult<{ application: Application; email?: { outcome: 'sent' | 'failed' | 'skipped'; error?: string } }>> {
   const session = await requireAdmin()
 
@@ -80,11 +82,28 @@ export async function updateStatus(input: {
     override = parsed.data
   }
 
+  // decided_after_interview lives only on accepted/rejected rows; any other status resets it.
+  let decidedAfterInterview: boolean | null = null
+  if (input.status === 'accepted' || input.status === 'rejected') {
+    if (typeof input.decidedAfterInterview === 'boolean') {
+      decidedAfterInterview = input.decidedAfterInterview
+    } else {
+      const { data: row } = await db()
+        .from('applications')
+        .select('interview_scheduled_at')
+        .eq('id', input.applicationId)
+        .single()
+      const scheduled = row?.interview_scheduled_at as string | null | undefined
+      decidedAfterInterview = !!scheduled && new Date(scheduled).getTime() < Date.now()
+    }
+  }
+
   // Status change first — email is a separate, non-blocking concern.
   const { data, error } = await db()
     .from('applications')
     .update({
       status: input.status,
+      decided_after_interview: decidedAfterInterview,
       status_changed_at: new Date().toISOString(),
       status_changed_by: session.displayName,
     })
@@ -111,6 +130,42 @@ export async function updateStatus(input: {
     override,
   })
   return { ok: true, application, email: result }
+}
+
+const confirmedDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable()
+const interviewAtSchema = z.string().datetime({ offset: true }).nullable()
+
+/** Set/clear confirmed_start_date and interview_scheduled_at. Never sends email. */
+export async function updateDates(input: {
+  applicationId: string
+  confirmedStartDate?: string | null
+  interviewScheduledAt?: string | null
+}): Promise<ActionResult<{ application: Application }>> {
+  await requireAdmin()
+
+  const patch: Record<string, string | null> = {}
+  if (input.confirmedStartDate !== undefined) {
+    const parsed = confirmedDateSchema.safeParse(input.confirmedStartDate)
+    if (!parsed.success) return { ok: false, error: 'validation', message: 'Confirmed date must be YYYY-MM-DD.' }
+    patch.confirmed_start_date = parsed.data
+  }
+  if (input.interviewScheduledAt !== undefined) {
+    const parsed = interviewAtSchema.safeParse(input.interviewScheduledAt)
+    if (!parsed.success) return { ok: false, error: 'validation', message: 'Interview time must be an ISO datetime.' }
+    patch.interview_scheduled_at = parsed.data
+  }
+  if (Object.keys(patch).length === 0) {
+    return { ok: false, error: 'validation', message: 'Nothing to update.' }
+  }
+
+  const { data, error } = await db()
+    .from('applications')
+    .update(patch)
+    .eq('id', input.applicationId)
+    .select()
+    .single()
+  if (error || !data) return { ok: false, error: 'server', message: 'Failed to update dates.' }
+  return { ok: true, application: data as Application }
 }
 
 export async function addNote(input: { applicationId: string; note: string }): Promise<ActionResult<{ note: ReviewNote }>> {

@@ -6,22 +6,31 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ApplicationLink } from '@/components/admin/application-link'
 import { ResendEmailDialog } from '@/components/admin/email-preview-dialog'
+import { StatusMenuItems } from '@/components/admin/status-menu-items'
 import { getEmailContent, renderCustomEmail } from '@/lib/email/templates'
 import { TRACKS } from '@/lib/content/tracks'
-import { STATUS_CONFIG, ALL_STATUSES } from '@/lib/types'
+import { STATUS_CONFIG } from '@/lib/types'
 import type { Application, ApplicationStatus, EmailLog, EmailOverride, ReviewNote } from '@/lib/types'
-import { formatDateTimeGMT7 } from '@/lib/applications/utils'
+import {
+  decisionVariantLabel,
+  formatDateTimeGMT7,
+  gmt7InputValueToIso,
+  INTERVIEW_STAGE_LABELS,
+  interviewStage,
+  isoToGmt7InputValue,
+} from '@/lib/applications/utils'
 
 interface ApplicationDetailsProps {
   application: Application
   notes: ReviewNote[]
   emailLogs: EmailLog[]
-  onStatusSelect: (status: ApplicationStatus) => void
+  onStatusSelect: (status: ApplicationStatus, decidedAfterInterview?: boolean) => void
   onAddNote: (note: string) => Promise<boolean>
   onRetryEmail: (log: EmailLog, override?: EmailOverride) => Promise<void>
+  onUpdateDates: (patch: { confirmedStartDate?: string | null; interviewScheduledAt?: string | null }) => Promise<void>
 }
 
 interface DetailsSheetProps extends ApplicationDetailsProps {
@@ -65,6 +74,9 @@ const NEXT_STATUS: Partial<Record<ApplicationStatus, { label: string; status: Ap
   interview: { label: 'Accept', status: 'accepted' },
 }
 
+const DATE_INPUT_CLASS =
+  'h-8 w-full rounded-md border border-[var(--admin-border)] bg-[var(--admin-ink)] px-2 text-sm text-[var(--admin-text)] [color-scheme:light] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--admin-accent)] dark:[color-scheme:dark]'
+
 function ApplicationDetails({
   application,
   notes,
@@ -72,14 +84,28 @@ function ApplicationDetails({
   onStatusSelect,
   onAddNote,
   onRetryEmail,
+  onUpdateDates,
 }: ApplicationDetailsProps) {
   const [noteDraft, setNoteDraft] = useState('')
   const [isAddingNote, setIsAddingNote] = useState(false)
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
   const [resendLog, setResendLog] = useState<EmailLog | null>(null)
+  // Drafts commit on blur so partial keyboard edits (which read as '') never clear a stored value.
+  const [confirmedDraft, setConfirmedDraft] = useState(application.confirmed_start_date ?? '')
+  const [interviewDraft, setInterviewDraft] = useState(isoToGmt7InputValue(application.interview_scheduled_at))
   const track = TRACKS[application.track]
   const nextAction = NEXT_STATUS[application.status]
+
+  const commitConfirmedDate = () => {
+    if (confirmedDraft === (application.confirmed_start_date ?? '')) return
+    void onUpdateDates({ confirmedStartDate: confirmedDraft || null })
+  }
+
+  const commitInterviewTime = () => {
+    if (interviewDraft === isoToGmt7InputValue(application.interview_scheduled_at)) return
+    void onUpdateDates({ interviewScheduledAt: gmt7InputValueToIso(interviewDraft) })
+  }
 
   const handleAddNote = async () => {
     if (!noteDraft.trim()) return
@@ -99,18 +125,18 @@ function ApplicationDetails({
               {nextAction.label}
             </Button>
           )}
-          <DropdownMenu>
+          {/* modal={false}: a modal menu locks body pointer-events, and opening the
+              email dialog from a menu item leaves that lock stuck (radix #1241). */}
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" className="border-[var(--admin-border)] bg-transparent text-[var(--admin-text)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)]">
                 <MoreHorizontal /> More actions
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              {ALL_STATUSES.filter((status) => status !== application.status && status !== nextAction?.status).map((status) => (
-                <DropdownMenuItem key={status} onSelect={() => onStatusSelect(status)}>
-                  {status === 'cancelled' ? 'Mark as cancelled' : STATUS_CONFIG[status].label}
-                </DropdownMenuItem>
-              ))}
+              {/* Only the current status is excluded: even when Accept is the suggested
+                  action, its submenu stays reachable to pick the non-default variant. */}
+              <StatusMenuItems application={application} onSelect={onStatusSelect} exclude={[application.status]} />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -155,6 +181,24 @@ function ApplicationDetails({
         )}
         <Field label="Country">{application.country}</Field>
         <Field label="Preferred start date">{application.preferred_start_date}</Field>
+        <Field label="Confirmed start date">
+          <input
+            type="date"
+            value={confirmedDraft}
+            onChange={(event) => setConfirmedDraft(event.target.value)}
+            onBlur={commitConfirmedDate}
+            className={DATE_INPUT_CLASS}
+          />
+        </Field>
+        <Field label="Interview time (GMT+7)">
+          <input
+            type="datetime-local"
+            value={interviewDraft}
+            onChange={(event) => setInterviewDraft(event.target.value)}
+            onBlur={commitInterviewTime}
+            className={DATE_INPUT_CLASS}
+          />
+        </Field>
       </div>
 
       <Field label="About">
@@ -295,6 +339,11 @@ function ApplicationDetails({
 // outside interaction is deliberately not a dismiss.
 export function DetailsSheet({ onClose, ...props }: DetailsSheetProps) {
   const { application } = props
+  // Terminal decisions carry their variant in the badge; legacy null rows read as the direct variant.
+  const statusLabel =
+    application.status === 'accepted' || application.status === 'rejected'
+      ? `${STATUS_CONFIG[application.status].label} · ${decisionVariantLabel(application.status, application.decided_after_interview)}`
+      : STATUS_CONFIG[application.status].label
   return (
     <Sheet open modal={false} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
@@ -308,8 +357,13 @@ export function DetailsSheet({ onClose, ...props }: DetailsSheetProps) {
               {TRACKS[application.track].shortName}
             </Badge>
             <Badge className={`border-0 ${STATUS_CONFIG[application.status].bgColor} ${STATUS_CONFIG[application.status].color}`}>
-              {STATUS_CONFIG[application.status].label}
+              {statusLabel}
             </Badge>
+            {application.status === 'interview' && (
+              <Badge className="border border-[var(--admin-border)] bg-transparent text-[var(--admin-muted)]">
+                {INTERVIEW_STAGE_LABELS[interviewStage(application, new Date())]}
+              </Badge>
+            )}
           </SheetTitle>
           <SheetDescription className="text-[var(--admin-faint)]">
             Applied {formatDateTimeGMT7(application.created_at)} (GMT+7)
