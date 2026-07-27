@@ -1,22 +1,23 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Loader2, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronDown, Loader2, Maximize2, RotateCcw } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ApplicationLink } from '@/components/admin/application-link'
-import { ResendEmailDialog } from '@/components/admin/email-preview-dialog'
+import { EmailLogDialog, ResendEmailDialog } from '@/components/admin/email-preview-dialog'
 import { StatusMenuItems } from '@/components/admin/status-menu-items'
-import { getEmailContent, renderCustomEmail } from '@/lib/email/templates'
+import { getEmailContent } from '@/lib/email/templates'
 import { TRACKS } from '@/lib/content/tracks'
 import { STATUS_CONFIG } from '@/lib/types'
 import type { Application, ApplicationStatus, EmailLog, EmailOverride, ReviewNote } from '@/lib/types'
 import { decisionVariantLabel, formatDateTimeGMT7 } from '@/lib/applications/utils'
 
-interface ApplicationDetailsProps {
+export interface ApplicationDetailsProps {
   application: Application
   notes: ReviewNote[]
   emailLogs: EmailLog[]
@@ -30,25 +31,59 @@ interface DetailsSheetProps extends ApplicationDetailsProps {
   onClose: () => void
 }
 
-// What was actually sent: edited emails carry body_text; template sends are
-// re-rendered from the same isomorphic module the server used (preview = send).
-function EmailLogPreview({ log, application }: { log: EmailLog; application: Application }) {
-  const content = log.body_text
-    ? renderCustomEmail(log.subject, log.body_text)
-    : getEmailContent(log.email_type, application)
-  const html = content.html.replace('<body', '<head><base target="_blank"></head><body')
+/**
+ * Title row shared by the drawer header and the full-page view: name, track,
+ * and the status badge — which IS the status menu, same interaction as the
+ * table's status cell.
+ */
+export function ApplicationTitleRow({
+  application,
+  onStatusSelect,
+}: {
+  application: Application
+  onStatusSelect: ApplicationDetailsProps['onStatusSelect']
+}) {
+  // Terminal decisions carry their variant in the badge; legacy null rows read as the direct variant.
+  const statusLabel =
+    application.status === 'accepted' || application.status === 'rejected'
+      ? `${STATUS_CONFIG[application.status].label} · ${decisionVariantLabel(application.status, application.decided_after_interview)}`
+      : STATUS_CONFIG[application.status].label
   return (
-    <div className="border-t border-[var(--admin-border)]">
-      <p className="border-b border-[var(--admin-border)] bg-[var(--admin-soft)] px-3 py-2 text-xs text-[var(--admin-muted)]">
-        Subject: <span className="font-medium text-[var(--admin-text)]">{log.subject || content.subject}</span>
-      </p>
-      <iframe
-        title="Sent email"
-        srcDoc={html}
-        className="h-72 w-full bg-white"
-        sandbox="allow-popups allow-popups-to-escape-sandbox"
-      />
-    </div>
+    <>
+      {application.full_name}
+      <Badge className="border border-[var(--admin-border)] bg-transparent text-[var(--admin-muted)]">
+        {TRACKS[application.track].shortName}
+      </Badge>
+      {/* modal={false}: a modal menu locks body pointer-events, and opening the
+          email dialog from a menu item leaves that lock stuck (radix #1241). */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)] ${STATUS_CONFIG[application.status].bgColor} ${STATUS_CONFIG[application.status].color}`}
+          >
+            {statusLabel}
+            <ChevronDown className="size-3 opacity-70" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <StatusMenuItems application={application} onSelect={onStatusSelect} exclude={[application.status]} />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  )
+}
+
+/** Applied / last-changed line under the title, shared by drawer and page. */
+export function ApplicationMetaLine({ application }: { application: Application }) {
+  return (
+    <>
+      Applied {formatDateTimeGMT7(application.created_at)} (GMT+7)
+      {application.status_changed_by &&
+        ` · Last changed by ${application.status_changed_by}${
+          application.status_changed_at ? ` · ${formatDateTimeGMT7(application.status_changed_at)}` : ''
+        }`}
+    </>
   )
 }
 
@@ -74,7 +109,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
 const DATE_INPUT_CLASS =
   'h-8 w-full rounded-md border border-[var(--admin-border)] bg-[var(--admin-ink)] px-2 text-sm text-[var(--admin-text)] [color-scheme:light] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--admin-accent)] dark:[color-scheme:dark]'
 
-function ApplicationDetails({
+export function ApplicationDetails({
   application,
   notes,
   emailLogs,
@@ -85,7 +120,7 @@ function ApplicationDetails({
   const [noteDraft, setNoteDraft] = useState('')
   const [isAddingNote, setIsAddingNote] = useState(false)
   const [retryingId, setRetryingId] = useState<string | null>(null)
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
+  const [viewLog, setViewLog] = useState<EmailLog | null>(null)
   const [resendLog, setResendLog] = useState<EmailLog | null>(null)
   // Draft commits on blur; the date is always set, so empty/partial edits revert.
   const [confirmedDraft, setConfirmedDraft] = useState(application.confirmed_start_date)
@@ -193,11 +228,8 @@ function ApplicationDetails({
             {emailLogs.map((log) => (
               <div key={log.id} className="rounded-md border border-[var(--admin-border)] bg-[var(--admin-ink)] text-sm">
                 <div className="flex items-start justify-between gap-3 p-3">
-                  <button
-                    type="button"
-                    className="min-w-0 flex-1 text-left"
-                    onClick={() => setExpandedLogId(expandedLogId === log.id ? null : log.id)}
-                  >
+                  {/* Row click opens the full email in a dialog. */}
+                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setViewLog(log)}>
                     <p className="font-medium text-[var(--admin-text)]">
                       {log.email_type}
                       <span
@@ -211,11 +243,9 @@ function ApplicationDetails({
                       >
                         {log.outcome}
                       </span>
-                      <ChevronDown
-                        className={`ml-1 inline size-3.5 text-[var(--admin-faint)] transition-transform ${
-                          expandedLogId === log.id ? 'rotate-180' : ''
-                        }`}
-                      />
+                    </p>
+                    <p className="truncate text-xs text-[var(--admin-muted)]">
+                      {log.subject || getEmailContent(log.email_type, application).subject}
                     </p>
                     <p className="text-xs text-[var(--admin-faint)]">
                       {formatDateTimeGMT7(log.created_at)} · by {log.triggered_by}
@@ -238,7 +268,6 @@ function ApplicationDetails({
                     )}
                   </Button>
                 </div>
-                {expandedLogId === log.id && <EmailLogPreview log={log} application={application} />}
               </div>
             ))}
           </div>
@@ -270,6 +299,18 @@ function ApplicationDetails({
         </div>
       </SectionCard>
 
+      {viewLog && (
+        <EmailLogDialog
+          application={application}
+          log={viewLog}
+          onResend={() => {
+            setResendLog(viewLog)
+            setViewLog(null)
+          }}
+          onClose={() => setViewLog(null)}
+        />
+      )}
+
       {resendLog && (
         <ResendEmailDialog
           application={application}
@@ -290,66 +331,32 @@ function ApplicationDetails({
 
 // Non-modal drawer: no backdrop, the list behind stays interactive so clicking
 // another row switches the drawer content in place. Closes via X only —
-// outside interaction is deliberately not a dismiss.
+// outside interaction is deliberately not a dismiss. The expand icon opens the
+// application as a real page (/admin/applications/[id]).
 export function DetailsSheet({ onClose, ...props }: DetailsSheetProps) {
   const { application, onStatusSelect } = props
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  // Terminal decisions carry their variant in the badge; legacy null rows read as the direct variant.
-  const statusLabel =
-    application.status === 'accepted' || application.status === 'rejected'
-      ? `${STATUS_CONFIG[application.status].label} · ${decisionVariantLabel(application.status, application.decided_after_interview)}`
-      : STATUS_CONFIG[application.status].label
   return (
     <Sheet open modal={false} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         onInteractOutside={(e) => e.preventDefault()}
-        className={
-          isFullscreen
-            ? 'inset-0 h-full w-full max-w-none overflow-y-auto overscroll-contain border-0 bg-[var(--admin-panel)] text-[var(--admin-text)] sm:max-w-none'
-            : 'w-full overflow-y-auto overscroll-contain border-[var(--admin-border)] bg-[var(--admin-panel)] text-[var(--admin-text)] sm:max-w-xl'
-        }
+        className="w-full overflow-y-auto overscroll-contain border-[var(--admin-border)] bg-[var(--admin-panel)] text-[var(--admin-text)] sm:max-w-xl"
       >
         <SheetHeader className="border-b border-[var(--admin-border)] px-5 py-4">
           <SheetTitle className="flex flex-wrap items-center gap-2 pr-16 text-xl font-semibold text-[var(--admin-text)]">
-            {application.full_name}
-            <Badge className="border border-[var(--admin-border)] bg-transparent text-[var(--admin-muted)]">
-              {TRACKS[application.track].shortName}
-            </Badge>
-            {/* Same interaction as the table's status cell: the badge IS the menu.
-                modal={false}: a modal menu locks body pointer-events, and opening the
-                email dialog from a menu item leaves that lock stuck (radix #1241). */}
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)] ${STATUS_CONFIG[application.status].bgColor} ${STATUS_CONFIG[application.status].color}`}
-                >
-                  {statusLabel}
-                  <ChevronDown className="size-3 opacity-70" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <StatusMenuItems application={application} onSelect={onStatusSelect} exclude={[application.status]} />
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ApplicationTitleRow application={application} onStatusSelect={onStatusSelect} />
           </SheetTitle>
           <SheetDescription className="text-[var(--admin-faint)]">
-            Applied {formatDateTimeGMT7(application.created_at)} (GMT+7)
-            {application.status_changed_by &&
-              ` · Last changed by ${application.status_changed_by}${
-                application.status_changed_at ? ` · ${formatDateTimeGMT7(application.status_changed_at)}` : ''
-              }`}
+            <ApplicationMetaLine application={application} />
           </SheetDescription>
         </SheetHeader>
-        <button
-          type="button"
-          title={isFullscreen ? 'Restore drawer size' : 'Open fullscreen'}
-          aria-label={isFullscreen ? 'Restore drawer size' : 'Open fullscreen'}
+        <Link
+          href={`/admin/applications/${application.id}`}
+          title="Open as page"
+          aria-label="Open as page"
           className="absolute top-4 right-12 rounded-xs p-1 text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]"
-          onClick={() => setIsFullscreen((fullscreen) => !fullscreen)}
         >
-          {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-        </button>
+          <Maximize2 className="size-4" />
+        </Link>
         {/* Keyed so note draft / expanded state reset when switching applicants */}
         <ApplicationDetails key={application.id} {...props} />
       </SheetContent>

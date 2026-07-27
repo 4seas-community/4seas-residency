@@ -5,7 +5,7 @@
 // sent, including admin edits (plain text, re-rendered through renderCustomEmail).
 
 import { useMemo, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, RotateCcw } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { getEmailContent, renderCustomEmail, type EmailContent } from '@/lib/email/templates'
 import type { Application, ApplicationStatus, EmailLog, EmailOverride, EmailType } from '@/lib/types'
 import { STATUS_CONFIG } from '@/lib/types'
-import { decisionVariantLabel } from '@/lib/applications/utils'
+import { decisionVariantLabel, formatDateTimeGMT7 } from '@/lib/applications/utils'
 
 const STATUS_EMAIL: Partial<Record<ApplicationStatus, EmailType>> = {
   interview: 'interview',
@@ -294,5 +294,66 @@ export function ResendEmailDialog({ application, log, isPending, onConfirm, onCa
         </>
       )}
     />
+  )
+}
+
+const OUTCOME_CLASS: Record<EmailLog['outcome'], string> = {
+  sent: 'text-[var(--admin-accent)]',
+  failed: 'text-red-600 dark:text-red-400',
+  skipped: 'text-[var(--admin-faint)]',
+}
+
+interface EmailLogDialogProps {
+  application: Application
+  log: EmailLog
+  onResend: () => void
+  onClose: () => void
+}
+
+// Read-only full view of a logged email: what was actually sent (edited body if
+// any), re-rendered from the same isomorphic module the server used.
+export function EmailLogDialog({ application, log, onResend, onClose }: EmailLogDialogProps) {
+  const content = useMemo(() => {
+    const template = getEmailContent(log.email_type, application)
+    return log.body_text ? renderCustomEmail(log.subject || template.subject, log.body_text) : template
+  }, [log, application])
+  const previewHtml = content.html.replace('<body', '<head><base target="_blank"></head><body')
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="flex max-h-[90vh] flex-col border-[var(--admin-border)] bg-[var(--admin-panel)] text-[var(--admin-text)] sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-[var(--admin-text)]">
+            {log.email_type} email <span className={`text-sm font-semibold ${OUTCOME_CLASS[log.outcome]}`}>{log.outcome}</span>
+          </DialogTitle>
+          <DialogDescription className="text-[var(--admin-faint)]">
+            To <span className="font-medium text-[var(--admin-text)]">{log.recipient}</span> ·{' '}
+            {formatDateTimeGMT7(log.created_at)} (GMT+7) · by {log.triggered_by}
+            {log.error && <span className="mt-1 block break-all text-red-600 dark:text-red-400">{log.error}</span>}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-[var(--admin-border)]">
+          <p className="border-b border-[var(--admin-border)] bg-[var(--admin-soft)] px-4 py-2 text-sm text-[var(--admin-muted)]">
+            Subject: <span className="font-medium text-[var(--admin-text)]">{log.subject || content.subject}</span>
+          </p>
+          <iframe
+            title="Sent email"
+            srcDoc={previewHtml}
+            className="h-[65vh] w-full bg-white"
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
+          />
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="ghost" className={BTN_GHOST} onClick={onClose}>
+            Close
+          </Button>
+          <Button variant="outline" className={BTN_OUTLINE} onClick={onResend}>
+            <RotateCcw className="size-3.5" /> {log.outcome === 'sent' ? 'Resend' : 'Send'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

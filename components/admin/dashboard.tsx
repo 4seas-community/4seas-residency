@@ -42,9 +42,10 @@ import {
 // Statuses whose transition triggers the email preview dialog
 const EMAIL_STATUSES: ApplicationStatus[] = ['interview', 'accepted', 'rejected']
 
-// Funnel summary cards: group filter + drill-down sub-filters. Sub-item counts
-// always sum to the group count (interview stages partition raw 'interview';
-// decided_after_interview null counts as a direct decision).
+// Status stat tiles: uniform label+count buttons. Drill-down sub-filters render
+// as a contextual row below the tiles, only while their group is selected
+// (progressive disclosure). Sub-item counts always sum to the group count
+// (decided_after_interview null counts as a direct decision).
 interface SummaryCardDef {
   title: string
   filter: StatusFilter
@@ -61,7 +62,7 @@ const SUMMARY_CARDS: SummaryCardDef[] = [
       { label: STATUS_CONFIG.reviewing.label, filter: 'reviewing' },
     ],
   },
-  { title: 'Interview', filter: 'interview', subItems: [] },
+  { title: 'Awaiting interview', filter: 'interview', subItems: [] },
   {
     title: 'Accepted',
     filter: 'accepted',
@@ -350,6 +351,11 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
   const toggleStatusFilter = (filter: StatusFilter) =>
     setStatusFilter((prev) => (prev === filter && filter !== 'all' ? 'all' : filter))
 
+  // Group owning the current status filter; its drill-down row renders only when non-empty.
+  const activeGroup = SUMMARY_CARDS.find(
+    (card) => card.filter === statusFilter || card.subItems.some((sub) => sub.filter === statusFilter),
+  )
+
   const handleSort = (column: SortColumn) =>
     setSort((prev) =>
       prev.column === column
@@ -558,67 +564,66 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
           </div>
         </section>
 
-        {/* Funnel summary cards */}
+        {/* Status stat tiles — uniform structure, no embedded lists */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
           {SUMMARY_CARDS.map((card) => {
-            const groupActive = statusFilter === card.filter
-            const subActive = card.subItems.some((sub) => sub.filter === statusFilter)
+            const active = statusFilter === card.filter || card.subItems.some((sub) => sub.filter === statusFilter)
             return (
-              <div
+              <button
                 key={card.title}
-                className={`flex flex-col rounded-md border bg-[var(--admin-panel)] p-1.5 ${
-                  groupActive || subActive ? 'border-[var(--admin-accent)]' : 'border-[var(--admin-border)]'
+                type="button"
+                onClick={() => toggleStatusFilter(card.filter)}
+                aria-pressed={active}
+                className={`rounded-md border px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)] ${
+                  active
+                    ? 'border-[var(--admin-accent)] bg-[var(--admin-soft)]'
+                    : 'border-[var(--admin-border)] bg-[var(--admin-panel)] hover:bg-[var(--admin-soft)]'
                 }`}
               >
-                {/* flex-1: cards without sub-items stay full-height clickable, no dead space */}
-                <button
-                  type="button"
-                  onClick={() => toggleStatusFilter(card.filter)}
-                  aria-pressed={groupActive}
-                  className={`block w-full flex-1 rounded-sm px-1.5 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)] ${
-                    groupActive ? 'bg-[var(--admin-soft)]' : 'hover:bg-[var(--admin-soft)]'
+                <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-[var(--admin-muted)]">
+                  {card.title}
+                </span>
+                <span
+                  className={`block text-2xl font-semibold leading-tight tabular-nums ${
+                    active ? 'text-[var(--admin-accent)]' : 'text-[var(--admin-text)]'
                   }`}
                 >
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--admin-muted)]">
-                    {card.title}
-                  </span>
-                  <span
-                    className={`block text-2xl font-semibold leading-tight tabular-nums ${
-                      groupActive ? 'text-[var(--admin-accent)]' : 'text-[var(--admin-text)]'
-                    }`}
-                  >
-                    {countByFilter(scopedApplications, card.filter)}
-                  </span>
-                </button>
-                {card.subItems.length > 0 && (
-                  <div className="mt-1 space-y-px border-t border-[var(--admin-border)] pt-1">
-                    {card.subItems.map((sub) => {
-                      const active = statusFilter === sub.filter
-                      return (
-                        <button
-                          key={sub.filter}
-                          type="button"
-                          onClick={() => toggleStatusFilter(sub.filter)}
-                          aria-pressed={active}
-                          className={`flex w-full items-center justify-between gap-2 rounded-sm px-1.5 py-0.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)] ${
-                            active
-                              ? 'bg-[var(--admin-soft)] font-medium text-[var(--admin-text)]'
-                              : 'text-[var(--admin-muted)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)]'
-                          }`}
-                        >
-                          <span className="truncate">{sub.label}</span>
-                          <span className={`tabular-nums ${active ? 'text-[var(--admin-accent)]' : 'text-[var(--admin-faint)]'}`}>
-                            {countByFilter(scopedApplications, sub.filter)}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
+                  {countByFilter(scopedApplications, card.filter)}
+                </span>
+              </button>
             )
           })}
         </div>
+
+        {/* Drill-down for the selected group, shown only while relevant */}
+        {activeGroup && activeGroup.subItems.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-[var(--admin-muted)]">{activeGroup.title}</span>
+            <div className="inline-flex overflow-hidden rounded-sm border border-[var(--admin-border)]">
+              {[{ label: 'All', filter: activeGroup.filter }, ...activeGroup.subItems].map((option) => {
+                const active = statusFilter === option.filter
+                return (
+                  <button
+                    key={option.filter}
+                    type="button"
+                    onClick={() => setStatusFilter(active && option.filter !== activeGroup.filter ? activeGroup.filter : option.filter)}
+                    aria-pressed={active}
+                    className={`border-r border-[var(--admin-border)] px-2 py-1 text-xs tabular-nums outline-none last:border-r-0 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--admin-accent)] ${
+                      active
+                        ? 'bg-[var(--admin-soft)] font-medium text-[var(--admin-text)]'
+                        : 'text-[var(--admin-muted)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)]'
+                    }`}
+                  >
+                    {option.label}{' '}
+                    <span className={active ? 'text-[var(--admin-accent)]' : 'text-[var(--admin-faint)]'}>
+                      {countByFilter(scopedApplications, option.filter)}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Search + filter summary */}
         <div className="flex flex-wrap items-center gap-2">
