@@ -37,7 +37,7 @@ export interface Application {
   preferred_start_date: string // 'YYYY-MM-DD'
   /** Admin-confirmed move-in date ('YYYY-MM-DD'); preferred_start_date is never overwritten. */
   confirmed_start_date: string | null
-  /** Interview time (ISO); interview sub-stages are derived from this vs now, never stored. */
+  /** Legacy — scheduling is coordinated off-platform; DB column remains but is never read or written. */
   interview_scheduled_at: string | null
   /** Set only while status is accepted/rejected; null = legacy/direct decision. */
   decided_after_interview: boolean | null

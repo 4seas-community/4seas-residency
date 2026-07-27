@@ -45,21 +45,12 @@ function startDate(offsetDays: number | null, i: number): string {
 }
 
 async function main() {
-  let interviewSeq = 0
   const rows = NAMES.map((name, i) => {
     const track = TRACKS[i % TRACKS.length]
     const status = STATUSES[i % STATUSES.length]
     // One accepted application's preferred date lands within 3 days — cron scan picks it up
     const withinCronWindow = status === 'accepted' && i < 10
-
-    // Interview rows cycle through no time / future time / past time —
-    // covering both derived sub-stages (awaiting interview / awaiting decision)
-    let interviewScheduledAt: string | null = null
-    if (status === 'interview') {
-      const stage = interviewSeq++ % 3
-      if (stage === 1) interviewScheduledAt = new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString()
-      if (stage === 2) interviewScheduledAt = new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()
-    }
+    const preferredStartDate = startDate(withinCronWindow ? 2 : null, i)
 
     return {
       track,
@@ -70,11 +61,11 @@ async function main() {
       contact_method: i % 2 === 0 ? 'telegram' : 'whatsapp',
       telegram_or_whatsapp: i % 2 === 0 ? `@seed_user_${i + 1}` : `+66 81 234 5${String(i).padStart(3, '0')}`,
       country: ['Portugal', 'China', 'Ireland', 'Italy', 'India', 'Japan'][i % 6],
-      preferred_start_date: startDate(withinCronWindow ? 2 : null, i),
-      // One later accepted row: preferred date out of the cron window, confirmed date
-      // inside it — exercises the confirmed-over-preferred pick in the cron scan.
-      confirmed_start_date: status === 'accepted' && i >= 10 ? startDate(2, i) : null,
-      interview_scheduled_at: interviewScheduledAt,
+      preferred_start_date: preferredStartDate,
+      // Confirmed defaults to preferred at submission. One later accepted row gets an
+      // admin-adjusted confirmed date inside the cron window (preferred stays outside) —
+      // exercises the confirmed-over-preferred pick in the cron scan.
+      confirmed_start_date: status === 'accepted' && i >= 10 ? startDate(2, i) : preferredStartDate,
       // Terminal decisions alternate between direct and after-interview variants
       decided_after_interview: status === 'accepted' || status === 'rejected' ? i % 16 < 8 : null,
       about: `I am ${name}, a ${track} enthusiast exploring how community and technology intersect. (seeded application #${i + 1})`,

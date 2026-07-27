@@ -64,7 +64,7 @@ export async function updateStatus(input: {
   status: ApplicationStatus
   sendEmail: boolean
   emailOverride?: EmailOverride
-  /** Accept/Reject variant; when omitted, derived from interview_scheduled_at being in the past. */
+  /** Accept/Reject variant; when omitted, derived from the row currently being in interview status. */
   decidedAfterInterview?: boolean
 }): Promise<ActionResult<{ application: Application; email?: { outcome: 'sent' | 'failed' | 'skipped'; error?: string } }>> {
   const session = await requireAdmin()
@@ -90,11 +90,10 @@ export async function updateStatus(input: {
     } else {
       const { data: row } = await db()
         .from('applications')
-        .select('interview_scheduled_at')
+        .select('status')
         .eq('id', input.applicationId)
         .single()
-      const scheduled = row?.interview_scheduled_at as string | null | undefined
-      decidedAfterInterview = !!scheduled && new Date(scheduled).getTime() < Date.now()
+      decidedAfterInterview = row?.status === 'interview'
     }
   }
 
@@ -133,34 +132,20 @@ export async function updateStatus(input: {
 }
 
 const confirmedDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable()
-const interviewAtSchema = z.string().datetime({ offset: true }).nullable()
 
-/** Set/clear confirmed_start_date and interview_scheduled_at. Never sends email. */
+/** Set/clear confirmed_start_date. Never sends email. */
 export async function updateDates(input: {
   applicationId: string
-  confirmedStartDate?: string | null
-  interviewScheduledAt?: string | null
+  confirmedStartDate: string | null
 }): Promise<ActionResult<{ application: Application }>> {
   await requireAdmin()
 
-  const patch: Record<string, string | null> = {}
-  if (input.confirmedStartDate !== undefined) {
-    const parsed = confirmedDateSchema.safeParse(input.confirmedStartDate)
-    if (!parsed.success) return { ok: false, error: 'validation', message: 'Confirmed date must be YYYY-MM-DD.' }
-    patch.confirmed_start_date = parsed.data
-  }
-  if (input.interviewScheduledAt !== undefined) {
-    const parsed = interviewAtSchema.safeParse(input.interviewScheduledAt)
-    if (!parsed.success) return { ok: false, error: 'validation', message: 'Interview time must be an ISO datetime.' }
-    patch.interview_scheduled_at = parsed.data
-  }
-  if (Object.keys(patch).length === 0) {
-    return { ok: false, error: 'validation', message: 'Nothing to update.' }
-  }
+  const parsed = confirmedDateSchema.safeParse(input.confirmedStartDate)
+  if (!parsed.success) return { ok: false, error: 'validation', message: 'Confirmed date must be YYYY-MM-DD.' }
 
   const { data, error } = await db()
     .from('applications')
-    .update(patch)
+    .update({ confirmed_start_date: parsed.data })
     .eq('id', input.applicationId)
     .select()
     .single()

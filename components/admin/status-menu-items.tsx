@@ -40,7 +40,7 @@ function VariantItem({
 }
 
 export function StatusMenuItems({ application, onSelect, exclude = [] }: StatusMenuItemsProps) {
-  const afterIsDefault = defaultDecidedAfterInterview(application, new Date())
+  const afterIsDefault = defaultDecidedAfterInterview(application)
   return (
     <>
       {ALL_STATUSES.filter((status) => !exclude.includes(status)).map((status) => {

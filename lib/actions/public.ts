@@ -78,6 +78,8 @@ export async function submitApplication(input: ApplicationInput): Promise<Action
     contact_method: data.contactMethod,
     country: data.country,
     preferred_start_date: data.preferredStartDate,
+    // Confirmed defaults to the applicant's preference at submit; admins adjust it later.
+    confirmed_start_date: data.preferredStartDate,
     about: data.about,
     contribution: data.contribution,
     primary_link: data.primaryLink,

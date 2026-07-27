@@ -8,7 +8,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DetailsSheet } from '@/components/admin/details-sheet'
 import { ThemeToggle } from '@/components/admin/theme-toggle'
 import { EmailPreviewDialog } from '@/components/admin/email-preview-dialog'
@@ -16,16 +26,13 @@ import { StatusMenuItems } from '@/components/admin/status-menu-items'
 import { logout, updateStatus, updateDates, addNote, resendEmail } from '@/lib/actions/admin'
 import type { DashboardData } from '@/lib/db'
 import { TRACKS, TRACK_IDS, type TrackId } from '@/lib/content/tracks'
-import { ALL_STATUSES, STATUS_CONFIG } from '@/lib/types'
+import { STATUS_CONFIG } from '@/lib/types'
 import type { Application, ApplicationStatus, EmailLog, EmailOverride, ReviewNote } from '@/lib/types'
 import {
-  INTERVIEW_STAGE_LABELS,
   countByFilter,
   defaultDecidedAfterInterview,
   filterApplications,
   formatDateTimeGMT7,
-  gmt7InputValueToIso,
-  isoToGmt7InputValue,
   sortApplications,
   type SortColumn,
   type SortDirection,
@@ -54,14 +61,7 @@ const SUMMARY_CARDS: SummaryCardDef[] = [
       { label: STATUS_CONFIG.reviewing.label, filter: 'reviewing' },
     ],
   },
-  {
-    title: 'Interview',
-    filter: 'interview',
-    subItems: [
-      { label: INTERVIEW_STAGE_LABELS.awaiting_interview, filter: 'interview_awaiting_interview' },
-      { label: INTERVIEW_STAGE_LABELS.awaiting_decision, filter: 'interview_awaiting_decision' },
-    ],
-  },
+  { title: 'Interview', filter: 'interview', subItems: [] },
   {
     title: 'Accepted',
     filter: 'accepted',
@@ -183,77 +183,38 @@ function ColumnFilter({
   )
 }
 
-const RANGE_INPUT_CLASS =
-  'w-full rounded-sm border border-[var(--admin-border)] bg-[var(--admin-ink)] px-2 py-1 text-sm tabular-nums text-[var(--admin-text)] outline-none focus:border-[var(--admin-accent)] [color-scheme:light] dark:[color-scheme:dark]'
-
-/** From/to range on the effective move-in date (confirmed, falling back to preferred). */
-function MoveInRangeFilter({
-  from,
-  to,
-  onChange,
-}: {
-  from: string
-  to: string
-  onChange: (from: string, to: string) => void
-}) {
-  const active = !!from || !!to
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Filter by move-in date range"
-          className={`rounded-sm p-0.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)] ${
-            active ? 'text-[var(--admin-accent)]' : 'text-[var(--admin-faint)] hover:text-[var(--admin-text)]'
-          }`}
-        >
-          <ListFilter className="size-3.5" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-56 space-y-2 border-[var(--admin-border)] bg-[var(--admin-panel)] p-3 text-[var(--admin-text)] shadow-sm"
-      >
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--admin-muted)]">Move-in date</p>
-          <p className="mt-0.5 text-xs text-[var(--admin-faint)]">Confirmed date, falling back to preferred.</p>
-        </div>
-        <label className="block text-xs text-[var(--admin-muted)]">
-          From
-          <input type="date" value={from} onChange={(e) => onChange(e.target.value, to)} className={`mt-0.5 ${RANGE_INPUT_CLASS}`} />
-        </label>
-        <label className="block text-xs text-[var(--admin-muted)]">
-          To
-          <input type="date" value={to} onChange={(e) => onChange(from, e.target.value)} className={`mt-0.5 ${RANGE_INPUT_CLASS}`} />
-        </label>
-        {active && (
-          <button
-            type="button"
-            onClick={() => onChange('', '')}
-            className="w-full border-t border-[var(--admin-border)] pt-1.5 text-left text-xs text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
-          >
-            Clear filter
-          </button>
-        )}
-      </PopoverContent>
-    </Popover>
-  )
+/** Windowed page list: first, last, current ±1, ellipsis over the gaps. */
+function pageItems(current: number, count: number): (number | 'ellipsis')[] {
+  if (count <= 7) return Array.from({ length: count }, (_, i) => i)
+  const pages = [...new Set([0, current - 1, current, current + 1, count - 1])]
+    .filter((p) => p >= 0 && p < count)
+    .sort((a, b) => a - b)
+  const out: (number | 'ellipsis')[] = []
+  pages.forEach((p, i) => {
+    if (i > 0 && p - pages[i - 1] > 1) out.push('ellipsis')
+    out.push(p)
+  })
+  return out
 }
 
+const PAGER_NAV_CLASS =
+  'h-7 rounded-sm px-2 text-xs text-[var(--admin-muted)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)] focus-visible:ring-[var(--admin-accent)]'
+
+const RANGE_INPUT_CLASS =
+  'w-[8.5rem] max-w-full rounded-sm border border-[var(--admin-border)] bg-[var(--admin-panel)] px-2 py-1 text-xs tabular-nums text-[var(--admin-text)] outline-none transition-colors hover:border-[var(--admin-faint)] focus:border-[var(--admin-accent)] [color-scheme:light] dark:[color-scheme:dark]'
+
 /**
- * Inline table cell date/datetime input. Uncontrolled and keyed by the
+ * Inline table cell date input. Uncontrolled and keyed by the
  * canonical value: edits commit on blur (Enter blurs), external updates —
  * optimistic merge, server response, failure revert — remount with the fresh
  * value. Empty commit clears the field.
  */
 function InlineDateInput({
-  type,
   value,
   ariaLabel,
   widthClass,
   onCommit,
 }: {
-  type: 'date' | 'datetime-local'
   value: string
   ariaLabel: string
   widthClass: string
@@ -262,7 +223,7 @@ function InlineDateInput({
   return (
     <input
       key={value}
-      type={type}
+      type="date"
       defaultValue={value}
       aria-label={ariaLabel}
       onClick={(e) => e.stopPropagation()}
@@ -290,40 +251,61 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sort, setSort] = useState<SortState>({ column: 'submitted', direction: 'desc' })
-  const [trackFilter, setTrackFilter] = useState<TrackId[]>([])
+  const [trackFilter, setTrackFilter] = useState<TrackId | 'all'>('all')
   const [countryFilter, setCountryFilter] = useState<string[]>([])
-  const [statusColumnFilter, setStatusColumnFilter] = useState<ApplicationStatus[]>([])
-  const [moveInFrom, setMoveInFrom] = useState('')
-  const [moveInTo, setMoveInTo] = useState('')
+  // Move-in scope defaults to the current calendar year.
+  const thisYear = new Date().getFullYear()
+  const [moveInFrom, setMoveInFrom] = useState(`${thisYear}-01-01`)
+  const [moveInTo, setMoveInTo] = useState(`${thisYear}-12-31`)
+
+  const [pageSize, setPageSize] = useState(20)
+  const [page, setPage] = useState(0)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingStatusChange | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
 
-  // One clock per render for all derived interview-stage/decision-default logic.
-  const now = new Date()
+  const dateScopedApplications = useMemo(
+    () =>
+      filterApplications(applications, {
+        statusFilter: 'all',
+        searchQuery: '',
+        tracks: [],
+        countries: [],
+        statuses: [],
+        moveInFrom,
+        moveInTo,
+      }),
+    [applications, moveInFrom, moveInTo],
+  )
+
+  const scopedApplications = useMemo(
+    () => (trackFilter === 'all' ? dateScopedApplications : dateScopedApplications.filter((app) => app.track === trackFilter)),
+    [dateScopedApplications, trackFilter],
+  )
 
   const visible = useMemo(
     () =>
       sortApplications(
-        filterApplications(
-          applications,
-          {
-            statusFilter,
-            searchQuery,
-            tracks: trackFilter,
-            countries: countryFilter,
-            statuses: statusColumnFilter,
-            moveInFrom,
-            moveInTo,
-          },
-          new Date(),
-        ),
+        filterApplications(applications, {
+          statusFilter,
+          searchQuery,
+          tracks: trackFilter === 'all' ? [] : [trackFilter],
+          countries: countryFilter,
+          statuses: [],
+          moveInFrom,
+          moveInTo,
+        }),
         sort.column,
         sort.direction,
       ),
-    [applications, statusFilter, searchQuery, trackFilter, countryFilter, statusColumnFilter, moveInFrom, moveInTo, sort],
+    [applications, statusFilter, searchQuery, trackFilter, countryFilter, moveInFrom, moveInTo, sort],
   )
+
+  // Client-side pagination; clamping keeps the page valid when filters shrink the list.
+  const pageCount = Math.max(1, Math.ceil(visible.length / pageSize))
+  const safePage = Math.min(page, pageCount - 1)
+  const paged = visible.slice(safePage * pageSize, (safePage + 1) * pageSize)
 
   const countryOptions = useMemo(
     () =>
@@ -332,18 +314,30 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
         .map((country) => ({ value: country, label: country })),
     [applications],
   )
-  const trackOptions = TRACK_IDS.map((id) => ({ value: id, label: TRACKS[id].shortName }))
-  const statusOptions = ALL_STATUSES.map((status) => ({ value: status, label: STATUS_CONFIG[status].label }))
+  const trackOptions = [
+    { value: 'all' as const, label: 'All', count: dateScopedApplications.length },
+    ...TRACK_IDS.map((id) => ({
+      value: id,
+      label: TRACKS[id].shortName,
+      count: dateScopedApplications.filter((app) => app.track === id).length,
+    })),
+  ]
+  // Track + move-in range are page scope, not filters — Clear leaves them alone.
+  const hasFilters = statusFilter !== 'all' || countryFilter.length > 0
 
-  const hasColumnFilters =
-    trackFilter.length > 0 || countryFilter.length > 0 || statusColumnFilter.length > 0 || !!moveInFrom || !!moveInTo
-
-  const clearColumnFilters = () => {
-    setTrackFilter([])
+  const clearFilters = () => {
+    setStatusFilter('all')
     setCountryFilter([])
-    setStatusColumnFilter([])
-    setMoveInFrom('')
-    setMoveInTo('')
+  }
+
+  /** Chip label for the active status card/sub-item filter, e.g. "Interview · Awaiting decision". */
+  const statusFilterLabel = (filter: StatusFilter): string => {
+    for (const card of SUMMARY_CARDS) {
+      if (card.filter === filter) return card.title
+      const sub = card.subItems.find((s) => s.filter === filter)
+      if (sub) return `${card.title} · ${sub.label}`
+    }
+    return filter
   }
 
   const selected = applications.find((a) => a.id === selectedId) ?? null
@@ -436,7 +430,7 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
         decidedAfterInterview:
           status === 'interview'
             ? undefined
-            : (decidedAfterInterview ?? defaultDecidedAfterInterview(application, new Date())),
+            : (decidedAfterInterview ?? defaultDecidedAfterInterview(application)),
       })
     } else {
       void applyStatus(application, status, false)
@@ -445,16 +439,12 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
 
   const handleUpdateDates = async (
     application: Application,
-    patch: { confirmedStartDate?: string | null; interviewScheduledAt?: string | null },
+    patch: { confirmedStartDate: string | null },
   ): Promise<void> => {
     const previous = applications.find((a) => a.id === application.id)
     if (!previous) return
     // Optimistic: reflect the edit immediately, revert the row on failure.
-    mergeApplication({
-      ...previous,
-      ...(patch.confirmedStartDate !== undefined ? { confirmed_start_date: patch.confirmedStartDate } : {}),
-      ...(patch.interviewScheduledAt !== undefined ? { interview_scheduled_at: patch.interviewScheduledAt } : {}),
-    })
+    mergeApplication({ ...previous, confirmed_start_date: patch.confirmedStartDate })
     const result = await updateDates({ applicationId: application.id, ...patch })
     if (!result.ok) {
       mergeApplication(previous)
@@ -522,6 +512,51 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
       </header>
 
       <main className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 sm:py-6">
+        {/* Page scope: track tabs + move-in range apply to summary cards AND table. */}
+        <section className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-[var(--admin-border)]">
+          <div role="group" aria-label="Track" className="flex">
+            {trackOptions.map((option) => {
+              const active = trackFilter === option.value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setTrackFilter(option.value)}
+                  aria-pressed={active}
+                  className={`-mb-px border-b-2 px-3 pb-2 pt-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--admin-accent)] ${
+                    active
+                      ? 'border-[var(--admin-accent)] font-medium text-[var(--admin-text)]'
+                      : 'border-transparent text-[var(--admin-muted)] hover:border-[var(--admin-border)] hover:text-[var(--admin-text)]'
+                  }`}
+                >
+                  {option.label}{' '}
+                  <span className={`tabular-nums ${active ? 'text-[var(--admin-accent)]' : 'text-[var(--admin-faint)]'}`}>
+                    {option.count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <div role="group" aria-label="Move-in range" className="flex flex-wrap items-center gap-2 pb-1.5">
+            <span className="text-xs font-medium text-[var(--admin-muted)]">Move-in</span>
+            <input
+              type="date"
+              value={moveInFrom}
+              onChange={(e) => setMoveInFrom(e.target.value)}
+              aria-label="Move-in from"
+              className={RANGE_INPUT_CLASS}
+            />
+            <span className="text-xs text-[var(--admin-faint)]">–</span>
+            <input
+              type="date"
+              value={moveInTo}
+              onChange={(e) => setMoveInTo(e.target.value)}
+              aria-label="Move-in to"
+              className={RANGE_INPUT_CLASS}
+            />
+          </div>
+        </section>
+
         {/* Funnel summary cards */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
           {SUMMARY_CARDS.map((card) => {
@@ -530,15 +565,16 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
             return (
               <div
                 key={card.title}
-                className={`rounded-md border bg-[var(--admin-panel)] p-1.5 ${
+                className={`flex flex-col rounded-md border bg-[var(--admin-panel)] p-1.5 ${
                   groupActive || subActive ? 'border-[var(--admin-accent)]' : 'border-[var(--admin-border)]'
                 }`}
               >
+                {/* flex-1: cards without sub-items stay full-height clickable, no dead space */}
                 <button
                   type="button"
                   onClick={() => toggleStatusFilter(card.filter)}
                   aria-pressed={groupActive}
-                  className={`block w-full rounded-sm px-1.5 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)] ${
+                  className={`block w-full flex-1 rounded-sm px-1.5 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)] ${
                     groupActive ? 'bg-[var(--admin-soft)]' : 'hover:bg-[var(--admin-soft)]'
                   }`}
                 >
@@ -550,7 +586,7 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
                       groupActive ? 'text-[var(--admin-accent)]' : 'text-[var(--admin-text)]'
                     }`}
                   >
-                    {countByFilter(applications, card.filter, now)}
+                    {countByFilter(scopedApplications, card.filter)}
                   </span>
                 </button>
                 {card.subItems.length > 0 && (
@@ -571,7 +607,7 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
                         >
                           <span className="truncate">{sub.label}</span>
                           <span className={`tabular-nums ${active ? 'text-[var(--admin-accent)]' : 'text-[var(--admin-faint)]'}`}>
-                            {countByFilter(applications, sub.filter, now)}
+                            {countByFilter(scopedApplications, sub.filter)}
                           </span>
                         </button>
                       )
@@ -594,18 +630,40 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
               className="border-[var(--admin-border)] bg-[var(--admin-ink)] pl-9 text-[var(--admin-text)] placeholder:text-[var(--admin-faint)] focus-visible:ring-[var(--admin-accent)]"
             />
           </div>
-          {hasColumnFilters && (
+          {statusFilter !== 'all' && (
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--admin-accent)]/40 bg-[var(--admin-soft)] px-2.5 py-1 text-xs font-medium text-[var(--admin-text)] outline-none hover:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]"
+            >
+              {statusFilterLabel(statusFilter)}
+              <X className="size-3 text-[var(--admin-muted)]" />
+            </button>
+          )}
+          {countryFilter.map((country) => (
+            <button
+              key={country}
+              type="button"
+              onClick={() => setCountryFilter((prev) => prev.filter((c) => c !== country))}
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--admin-accent)]/40 bg-[var(--admin-soft)] px-2.5 py-1 text-xs font-medium text-[var(--admin-text)] outline-none hover:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]"
+            >
+              {country}
+              <X className="size-3 text-[var(--admin-muted)]" />
+            </button>
+          ))}
+          {hasFilters && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={clearColumnFilters}
+              onClick={clearFilters}
               className="text-[var(--admin-accent)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-accent-hover)]"
             >
-              <X className="size-3.5" />
-              Clear filters
+              Clear
             </Button>
           )}
-          <p className="whitespace-nowrap text-xs tabular-nums text-[var(--admin-faint)]">{visible.length} shown</p>
+          <p className="whitespace-nowrap text-xs tabular-nums text-[var(--admin-faint)]">
+            Showing {visible.length} of {scopedApplications.length} applications
+          </p>
         </div>
 
         {/* Table */}
@@ -613,23 +671,13 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
           {visible.length === 0 ? (
             <p className="p-10 text-center text-sm text-[var(--admin-faint)]">No applications match these filters.</p>
           ) : (
-            <Table className="min-w-[1000px]">
+            <Table className="min-w-[780px]">
               <TableHeader className="bg-[var(--admin-ink)]">
                 <TableRow className="border-[var(--admin-border)] hover:bg-transparent">
                   <TableHead className="px-3">
                     <SortableHead label="Applicant" column="name" sort={sort} onSort={handleSort} />
                   </TableHead>
-                  <TableHead className="px-3">
-                    <span className="inline-flex items-center gap-1">
-                      Track
-                      <ColumnFilter
-                        label="track"
-                        options={trackOptions}
-                        selected={trackFilter}
-                        onChange={(next) => setTrackFilter(next as TrackId[])}
-                      />
-                    </span>
-                  </TableHead>
+                  <TableHead className="px-3">Track</TableHead>
                   <TableHead className="px-3">
                     <SortableHead label="Submitted" column="submitted" sort={sort} onSort={handleSort} />
                   </TableHead>
@@ -640,37 +688,13 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
                     </span>
                   </TableHead>
                   <TableHead className="px-3">
-                    <span className="inline-flex items-center gap-1">
-                      <SortableHead label="Preferred" column="preferred" sort={sort} onSort={handleSort} />
-                      <MoveInRangeFilter
-                        from={moveInFrom}
-                        to={moveInTo}
-                        onChange={(from, to) => {
-                          setMoveInFrom(from)
-                          setMoveInTo(to)
-                        }}
-                      />
-                    </span>
+                    <SortableHead label="Move-in" column="confirmed" sort={sort} onSort={handleSort} />
                   </TableHead>
-                  <TableHead className="px-3">
-                    <SortableHead label="Confirmed" column="confirmed" sort={sort} onSort={handleSort} />
-                  </TableHead>
-                  <TableHead className="px-3">Interview</TableHead>
-                  <TableHead className="px-3">
-                    <span className="inline-flex items-center gap-1">
-                      Status
-                      <ColumnFilter
-                        label="status"
-                        options={statusOptions}
-                        selected={statusColumnFilter}
-                        onChange={(next) => setStatusColumnFilter(next as ApplicationStatus[])}
-                      />
-                    </span>
-                  </TableHead>
+                  <TableHead className="px-3">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visible.map((app) => (
+                {paged.map((app) => (
                   <TableRow
                     key={app.id}
                     onClick={() => setSelectedId(app.id)}
@@ -698,25 +722,13 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
                     <TableCell className="max-w-[140px] truncate px-3 py-2 text-xs text-[var(--admin-muted)]">
                       {app.country}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap px-3 py-2 text-xs tabular-nums text-[var(--admin-muted)]">
-                      {app.preferred_start_date}
-                    </TableCell>
                     <TableCell className="px-3 py-2">
+                      {/* Coalesce covers legacy rows predating migration 006. */}
                       <InlineDateInput
-                        type="date"
-                        value={app.confirmed_start_date ?? ''}
-                        ariaLabel={`Confirmed start date for ${app.full_name}`}
+                        value={app.confirmed_start_date ?? app.preferred_start_date}
+                        ariaLabel={`Confirmed move-in date for ${app.full_name}`}
                         widthClass="w-[8.25rem]"
                         onCommit={(value) => void handleUpdateDates(app, { confirmedStartDate: value || null })}
-                      />
-                    </TableCell>
-                    <TableCell className="px-3 py-2">
-                      <InlineDateInput
-                        type="datetime-local"
-                        value={isoToGmt7InputValue(app.interview_scheduled_at)}
-                        ariaLabel={`Interview time (GMT+7) for ${app.full_name}`}
-                        widthClass="w-[11.5rem]"
-                        onCommit={(value) => void handleUpdateDates(app, { interviewScheduledAt: gmt7InputValueToIso(value) })}
                       />
                     </TableCell>
                     <TableCell className="px-3 py-2">
@@ -746,6 +758,82 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
                 ))}
               </TableBody>
             </Table>
+          )}
+          {visible.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--admin-border)] px-3 py-2">
+              <label className="flex items-center gap-2 text-xs text-[var(--admin-muted)]">
+                Rows per page
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value))
+                    setPage(0)
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="h-7 gap-1 rounded-sm border-[var(--admin-border)] bg-[var(--admin-panel)] px-2 text-xs text-[var(--admin-text)] shadow-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-[var(--admin-accent)]/40"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="min-w-[4rem] border-[var(--admin-border)] bg-[var(--admin-panel)] text-[var(--admin-text)]">
+                    {[20, 50, 100].map((n) => (
+                      <SelectItem
+                        key={n}
+                        value={String(n)}
+                        className="text-xs focus:bg-[var(--admin-soft)] focus:text-[var(--admin-text)]"
+                      >
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs tabular-nums text-[var(--admin-faint)]">
+                  {safePage * pageSize + 1}–{Math.min((safePage + 1) * pageSize, visible.length)} of {visible.length}
+                </span>
+                <Pagination className="mx-0 w-auto">
+                  <PaginationContent className="gap-0.5">
+                    <PaginationItem>
+                      <PaginationPrevious
+                        disabled={safePage === 0}
+                        onClick={() => setPage(safePage - 1)}
+                        className={PAGER_NAV_CLASS}
+                      />
+                    </PaginationItem>
+                    {pageItems(safePage, pageCount).map((item, i) =>
+                      item === 'ellipsis' ? (
+                        <PaginationItem key={`ellipsis-${i}`}>
+                          <PaginationEllipsis className="size-7 text-[var(--admin-faint)]" />
+                        </PaginationItem>
+                      ) : (
+                        <PaginationItem key={item}>
+                          <PaginationLink
+                            isActive={item === safePage}
+                            onClick={() => setPage(item)}
+                            className={`size-7 rounded-sm text-xs shadow-none focus-visible:ring-[var(--admin-accent)] ${
+                              item === safePage
+                                ? 'border-[var(--admin-border)] bg-[var(--admin-soft)] text-[var(--admin-text)]'
+                                : 'text-[var(--admin-muted)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)]'
+                            }`}
+                          >
+                            {item + 1}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ),
+                    )}
+                    <PaginationItem>
+                      <PaginationNext
+                        disabled={safePage >= pageCount - 1}
+                        onClick={() => setPage(safePage + 1)}
+                        className={PAGER_NAV_CLASS}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            </div>
           )}
         </div>
       </main>

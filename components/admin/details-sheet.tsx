@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Loader2, MoreHorizontal, RotateCcw } from 'lucide-react'
+import { ChevronDown, Loader2, Maximize2, Minimize2, MoreHorizontal, RotateCcw } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,14 +14,7 @@ import { getEmailContent, renderCustomEmail } from '@/lib/email/templates'
 import { TRACKS } from '@/lib/content/tracks'
 import { STATUS_CONFIG } from '@/lib/types'
 import type { Application, ApplicationStatus, EmailLog, EmailOverride, ReviewNote } from '@/lib/types'
-import {
-  decisionVariantLabel,
-  formatDateTimeGMT7,
-  gmt7InputValueToIso,
-  INTERVIEW_STAGE_LABELS,
-  interviewStage,
-  isoToGmt7InputValue,
-} from '@/lib/applications/utils'
+import { decisionVariantLabel, formatDateTimeGMT7 } from '@/lib/applications/utils'
 
 interface ApplicationDetailsProps {
   application: Application
@@ -30,7 +23,7 @@ interface ApplicationDetailsProps {
   onStatusSelect: (status: ApplicationStatus, decidedAfterInterview?: boolean) => void
   onAddNote: (note: string) => Promise<boolean>
   onRetryEmail: (log: EmailLog, override?: EmailOverride) => Promise<void>
-  onUpdateDates: (patch: { confirmedStartDate?: string | null; interviewScheduledAt?: string | null }) => Promise<void>
+  onUpdateDates: (patch: { confirmedStartDate: string | null }) => Promise<void>
 }
 
 interface DetailsSheetProps extends ApplicationDetailsProps {
@@ -91,20 +84,16 @@ function ApplicationDetails({
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
   const [resendLog, setResendLog] = useState<EmailLog | null>(null)
-  // Drafts commit on blur so partial keyboard edits (which read as '') never clear a stored value.
-  const [confirmedDraft, setConfirmedDraft] = useState(application.confirmed_start_date ?? '')
-  const [interviewDraft, setInterviewDraft] = useState(isoToGmt7InputValue(application.interview_scheduled_at))
+  // Defaults to the preferred date until explicitly confirmed (DB stays null).
+  // Draft commits on blur so partial keyboard edits (which read as '') never clear a stored value.
+  const confirmedDefault = application.confirmed_start_date ?? application.preferred_start_date
+  const [confirmedDraft, setConfirmedDraft] = useState(confirmedDefault)
   const track = TRACKS[application.track]
   const nextAction = NEXT_STATUS[application.status]
 
   const commitConfirmedDate = () => {
-    if (confirmedDraft === (application.confirmed_start_date ?? '')) return
+    if (confirmedDraft === confirmedDefault) return
     void onUpdateDates({ confirmedStartDate: confirmedDraft || null })
-  }
-
-  const commitInterviewTime = () => {
-    if (interviewDraft === isoToGmt7InputValue(application.interview_scheduled_at)) return
-    void onUpdateDates({ interviewScheduledAt: gmt7InputValueToIso(interviewDraft) })
   }
 
   const handleAddNote = async () => {
@@ -187,15 +176,6 @@ function ApplicationDetails({
             value={confirmedDraft}
             onChange={(event) => setConfirmedDraft(event.target.value)}
             onBlur={commitConfirmedDate}
-            className={DATE_INPUT_CLASS}
-          />
-        </Field>
-        <Field label="Interview time (GMT+7)">
-          <input
-            type="datetime-local"
-            value={interviewDraft}
-            onChange={(event) => setInterviewDraft(event.target.value)}
-            onBlur={commitInterviewTime}
             className={DATE_INPUT_CLASS}
           />
         </Field>
@@ -339,6 +319,7 @@ function ApplicationDetails({
 // outside interaction is deliberately not a dismiss.
 export function DetailsSheet({ onClose, ...props }: DetailsSheetProps) {
   const { application } = props
+  const [isFullscreen, setIsFullscreen] = useState(false)
   // Terminal decisions carry their variant in the badge; legacy null rows read as the direct variant.
   const statusLabel =
     application.status === 'accepted' || application.status === 'rejected'
@@ -348,10 +329,14 @@ export function DetailsSheet({ onClose, ...props }: DetailsSheetProps) {
     <Sheet open modal={false} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         onInteractOutside={(e) => e.preventDefault()}
-        className="w-full overflow-y-auto overscroll-contain border-[var(--admin-border)] bg-[var(--admin-panel)] text-[var(--admin-text)] sm:max-w-xl"
+        className={
+          isFullscreen
+            ? 'inset-0 h-full w-full max-w-none overflow-y-auto overscroll-contain border-0 bg-[var(--admin-panel)] text-[var(--admin-text)] sm:max-w-none'
+            : 'w-full overflow-y-auto overscroll-contain border-[var(--admin-border)] bg-[var(--admin-panel)] text-[var(--admin-text)] sm:max-w-xl'
+        }
       >
         <SheetHeader className="border-b border-[var(--admin-border)] px-5 py-4">
-          <SheetTitle className="flex flex-wrap items-center gap-2 pr-8 text-xl font-semibold text-[var(--admin-text)]">
+          <SheetTitle className="flex flex-wrap items-center gap-2 pr-16 text-xl font-semibold text-[var(--admin-text)]">
             {application.full_name}
             <Badge className="border border-[var(--admin-border)] bg-transparent text-[var(--admin-muted)]">
               {TRACKS[application.track].shortName}
@@ -359,16 +344,20 @@ export function DetailsSheet({ onClose, ...props }: DetailsSheetProps) {
             <Badge className={`border-0 ${STATUS_CONFIG[application.status].bgColor} ${STATUS_CONFIG[application.status].color}`}>
               {statusLabel}
             </Badge>
-            {application.status === 'interview' && (
-              <Badge className="border border-[var(--admin-border)] bg-transparent text-[var(--admin-muted)]">
-                {INTERVIEW_STAGE_LABELS[interviewStage(application, new Date())]}
-              </Badge>
-            )}
           </SheetTitle>
           <SheetDescription className="text-[var(--admin-faint)]">
             Applied {formatDateTimeGMT7(application.created_at)} (GMT+7)
           </SheetDescription>
         </SheetHeader>
+        <button
+          type="button"
+          title={isFullscreen ? 'Restore drawer size' : 'Open fullscreen'}
+          aria-label={isFullscreen ? 'Restore drawer size' : 'Open fullscreen'}
+          className="absolute top-4 right-12 rounded-xs p-1 text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]"
+          onClick={() => setIsFullscreen((fullscreen) => !fullscreen)}
+        >
+          {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+        </button>
         {/* Keyed so note draft / expanded state reset when switching applicants */}
         <ApplicationDetails key={application.id} {...props} />
       </SheetContent>
