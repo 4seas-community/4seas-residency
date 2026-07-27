@@ -131,12 +131,12 @@ export async function updateStatus(input: {
   return { ok: true, application, email: result }
 }
 
-const confirmedDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable()
+const confirmedDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
-/** Set/clear confirmed_start_date. Never sends email. */
+/** Update confirmed_start_date. Never sends email. */
 export async function updateDates(input: {
   applicationId: string
-  confirmedStartDate: string | null
+  confirmedStartDate: string
 }): Promise<ActionResult<{ application: Application }>> {
   await requireAdmin()
 

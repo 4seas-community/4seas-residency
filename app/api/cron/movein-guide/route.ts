@@ -18,15 +18,15 @@ export async function GET(request: Request) {
   const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10)
   const upper = new Date(Date.now() + 7 * 3600 * 1000 + 3 * 24 * 3600 * 1000).toISOString().slice(0, 10)
 
-  // Effective move-in date is confirmed_start_date ?? preferred_start_date; Supabase
-  // can't filter on a coalesce, so pull all accepted rows (small set) and filter here.
-  const { data: candidates, error } = await db().from('applications').select('*').eq('status', 'accepted')
+  const { data: candidates, error } = await db()
+    .from('applications')
+    .select('*')
+    .eq('status', 'accepted')
+    .gte('confirmed_start_date', today)
+    .lte('confirmed_start_date', upper)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const apps = ((candidates ?? []) as Application[]).filter((a) => {
-    const startDate = a.confirmed_start_date ?? a.preferred_start_date
-    return startDate >= today && startDate <= upper
-  })
+  const apps = (candidates ?? []) as Application[]
   let sent = 0
   let failed = 0
 

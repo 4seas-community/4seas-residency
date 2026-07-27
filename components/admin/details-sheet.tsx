@@ -23,7 +23,7 @@ interface ApplicationDetailsProps {
   onStatusSelect: (status: ApplicationStatus, decidedAfterInterview?: boolean) => void
   onAddNote: (note: string) => Promise<boolean>
   onRetryEmail: (log: EmailLog, override?: EmailOverride) => Promise<void>
-  onUpdateDates: (patch: { confirmedStartDate: string | null }) => Promise<void>
+  onUpdateDates: (patch: { confirmedStartDate: string }) => Promise<void>
 }
 
 interface DetailsSheetProps extends ApplicationDetailsProps {
@@ -84,16 +84,18 @@ function ApplicationDetails({
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
   const [resendLog, setResendLog] = useState<EmailLog | null>(null)
-  // Defaults to the preferred date until explicitly confirmed (DB stays null).
-  // Draft commits on blur so partial keyboard edits (which read as '') never clear a stored value.
-  const confirmedDefault = application.confirmed_start_date ?? application.preferred_start_date
-  const [confirmedDraft, setConfirmedDraft] = useState(confirmedDefault)
+  // Draft commits on blur; the date is always set, so empty/partial edits revert.
+  const [confirmedDraft, setConfirmedDraft] = useState(application.confirmed_start_date)
   const track = TRACKS[application.track]
   const nextAction = NEXT_STATUS[application.status]
 
   const commitConfirmedDate = () => {
-    if (confirmedDraft === confirmedDefault) return
-    void onUpdateDates({ confirmedStartDate: confirmedDraft || null })
+    if (!confirmedDraft) {
+      setConfirmedDraft(application.confirmed_start_date)
+      return
+    }
+    if (confirmedDraft === application.confirmed_start_date) return
+    void onUpdateDates({ confirmedStartDate: confirmedDraft })
   }
 
   const handleAddNote = async () => {

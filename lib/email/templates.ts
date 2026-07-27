@@ -77,8 +77,7 @@ export function getEmailContent(type: EmailType, application: Application): Emai
   const track = TRACKS[application.track]
   const trackName = track?.name ?? 'Residency'
   const firstName = application.full_name.trim().split(/\s+/)[0] || application.full_name
-  // Effective move-in date: admin-confirmed when set, applicant's preference otherwise.
-  const startDate = formatStartDate(application.confirmed_start_date ?? application.preferred_start_date)
+  const startDate = formatStartDate(application.confirmed_start_date)
 
   switch (type) {
     case 'interview': {

@@ -35,8 +35,8 @@ export interface Application {
   contact_method: ContactMethod | null
   country: string
   preferred_start_date: string // 'YYYY-MM-DD'
-  /** Admin-confirmed move-in date ('YYYY-MM-DD'); preferred_start_date is never overwritten. */
-  confirmed_start_date: string | null
+  /** The working move-in date ('YYYY-MM-DD'): written at submission (= preferred), admin-adjustable. Never null (006 backfilled). */
+  confirmed_start_date: string
   /** Legacy — scheduling is coordinated off-platform; DB column remains but is never read or written. */
   interview_scheduled_at: string | null
   /** Set only while status is accepted/rejected; null = legacy/direct decision. */

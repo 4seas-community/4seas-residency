@@ -92,11 +92,6 @@ export function countByFilter(applications: Application[], filter: StatusFilter)
   return applications.filter((app) => matchesStatusFilter(app, filter)).length
 }
 
-/** The date the applicant would actually move in: admin-confirmed, else preferred. */
-export function moveInDate(app: Application): string {
-  return app.confirmed_start_date ?? app.preferred_start_date
-}
-
 export interface ApplicationFilters {
   statusFilter: StatusFilter
   searchQuery: string
@@ -104,7 +99,7 @@ export interface ApplicationFilters {
   tracks: TrackId[]
   countries: string[]
   statuses: ApplicationStatus[]
-  /** Inclusive 'YYYY-MM-DD' bounds on moveInDate(); '' = unbounded. */
+  /** Inclusive 'YYYY-MM-DD' bounds on confirmed_start_date; '' = unbounded. */
   moveInFrom: string
   moveInTo: string
 }
@@ -121,9 +116,8 @@ export function filterApplications(
     if (statuses.length > 0 && !statuses.includes(app.status)) return false
 
     // 'YYYY-MM-DD' compares correctly as a string
-    const moveIn = moveInDate(app)
-    if (moveInFrom && moveIn < moveInFrom) return false
-    if (moveInTo && moveIn > moveInTo) return false
+    if (moveInFrom && app.confirmed_start_date < moveInFrom) return false
+    if (moveInTo && app.confirmed_start_date > moveInTo) return false
 
     if (searchTerms.length > 0) {
       const searchableText = [
@@ -152,8 +146,7 @@ function compareBy(a: Application, b: Application, column: SortColumn): number {
     case 'submitted':
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     case 'confirmed':
-      // matches the displayed value: confirmed falls back to preferred
-      return moveInDate(a).localeCompare(moveInDate(b))
+      return a.confirmed_start_date.localeCompare(b.confirmed_start_date)
     case 'country':
       return a.country.localeCompare(b.country)
   }

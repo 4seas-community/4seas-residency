@@ -207,7 +207,7 @@ const RANGE_INPUT_CLASS =
  * Inline table cell date input. Uncontrolled and keyed by the
  * canonical value: edits commit on blur (Enter blurs), external updates —
  * optimistic merge, server response, failure revert — remount with the fresh
- * value. Empty commit clears the field.
+ * value. The date is always set — an emptied input reverts instead of clearing.
  */
 function InlineDateInput({
   value,
@@ -228,7 +228,8 @@ function InlineDateInput({
       aria-label={ariaLabel}
       onClick={(e) => e.stopPropagation()}
       onBlur={(e) => {
-        if (e.target.value !== value) onCommit(e.target.value)
+        if (!e.target.value) e.target.value = value
+        else if (e.target.value !== value) onCommit(e.target.value)
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') e.currentTarget.blur()
@@ -439,7 +440,7 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
 
   const handleUpdateDates = async (
     application: Application,
-    patch: { confirmedStartDate: string | null },
+    patch: { confirmedStartDate: string },
   ): Promise<void> => {
     const previous = applications.find((a) => a.id === application.id)
     if (!previous) return
@@ -723,12 +724,11 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
                       {app.country}
                     </TableCell>
                     <TableCell className="px-3 py-2">
-                      {/* Coalesce covers legacy rows predating migration 006. */}
                       <InlineDateInput
-                        value={app.confirmed_start_date ?? app.preferred_start_date}
+                        value={app.confirmed_start_date}
                         ariaLabel={`Confirmed move-in date for ${app.full_name}`}
                         widthClass="w-[8.25rem]"
-                        onCommit={(value) => void handleUpdateDates(app, { confirmedStartDate: value || null })}
+                        onCommit={(value) => void handleUpdateDates(app, { confirmedStartDate: value })}
                       />
                     </TableCell>
                     <TableCell className="px-3 py-2">
