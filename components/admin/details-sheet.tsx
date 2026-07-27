@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Loader2, Maximize2, Minimize2, MoreHorizontal, RotateCcw } from 'lucide-react'
+import { ChevronDown, Loader2, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -61,10 +61,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-const NEXT_STATUS: Partial<Record<ApplicationStatus, { label: string; status: ApplicationStatus }>> = {
-  submitted: { label: 'Start review', status: 'reviewing' },
-  reviewing: { label: 'Invite to interview', status: 'interview' },
-  interview: { label: 'Accept', status: 'accepted' },
+// Card level of the three-depth scheme: panel sheet → bordered card → ink inset.
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3 rounded-md border border-[var(--admin-border)] bg-[var(--admin-panel)] p-4 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--admin-faint)]">{title}</p>
+      {children}
+    </section>
+  )
 }
 
 const DATE_INPUT_CLASS =
@@ -74,7 +78,6 @@ function ApplicationDetails({
   application,
   notes,
   emailLogs,
-  onStatusSelect,
   onAddNote,
   onRetryEmail,
   onUpdateDates,
@@ -87,7 +90,6 @@ function ApplicationDetails({
   // Draft commits on blur; the date is always set, so empty/partial edits revert.
   const [confirmedDraft, setConfirmedDraft] = useState(application.confirmed_start_date)
   const track = TRACKS[application.track]
-  const nextAction = NEXT_STATUS[application.status]
 
   const commitConfirmedDate = () => {
     if (!confirmedDraft) {
@@ -107,112 +109,83 @@ function ApplicationDetails({
   }
 
   return (
-    <div className="space-y-5 px-5 pb-8 pt-5">
-      <div className="space-y-2 border-b border-[var(--admin-border)] pb-5">
-        <p className="text-xs font-medium text-[var(--admin-faint)]">Current status: {STATUS_CONFIG[application.status].label}</p>
-        <div className="flex flex-wrap gap-2">
-          {nextAction && (
-            <Button size="sm" className="bg-[var(--admin-accent)] text-[var(--admin-ink)] hover:bg-[var(--admin-accent-hover)]" onClick={() => onStatusSelect(nextAction.status)}>
-              {nextAction.label}
-            </Button>
+    <div className="mx-auto w-full max-w-3xl space-y-5 px-5 pb-8 pt-5">
+      <SectionCard title="Applicant">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Email">
+            <a href={`mailto:${application.email}`} className="break-all text-[var(--admin-accent)] hover:underline">
+              {application.email}
+            </a>
+          </Field>
+          {application.contact_method === 'telegram' ? (
+            <Field label="Telegram">
+              <a
+                href={`https://t.me/${application.telegram_or_whatsapp.replace(/^@/, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="break-all text-[var(--admin-accent)] hover:underline"
+              >
+                {application.telegram_or_whatsapp}
+              </a>
+            </Field>
+          ) : application.contact_method === 'whatsapp' ? (
+            <Field label="WhatsApp">
+              <a
+                href={`https://wa.me/${application.telegram_or_whatsapp.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="break-all text-[var(--admin-accent)] hover:underline"
+              >
+                {application.telegram_or_whatsapp}
+              </a>
+            </Field>
+          ) : (
+            <Field label="WhatsApp / Telegram">{application.telegram_or_whatsapp}</Field>
           )}
-          {/* modal={false}: a modal menu locks body pointer-events, and opening the
-              email dialog from a menu item leaves that lock stuck (radix #1241). */}
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="border-[var(--admin-border)] bg-transparent text-[var(--admin-text)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)]">
-                <MoreHorizontal /> More actions
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {/* Only the current status is excluded: even when Accept is the suggested
-                  action, its submenu stays reachable to pick the non-default variant. */}
-              <StatusMenuItems application={application} onSelect={onStatusSelect} exclude={[application.status]} />
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Field label="Country">{application.country}</Field>
+          <Field label="Preferred start date">{application.preferred_start_date}</Field>
+          <Field label="Confirmed move-in date">
+            <input
+              type="date"
+              value={confirmedDraft}
+              onChange={(event) => setConfirmedDraft(event.target.value)}
+              onBlur={commitConfirmedDate}
+              className={DATE_INPUT_CLASS}
+            />
+          </Field>
         </div>
-        {application.status_changed_by && (
-          <p className="text-xs text-[var(--admin-faint)]">
-            Last changed by {application.status_changed_by}
-            {application.status_changed_at && ` · ${formatDateTimeGMT7(application.status_changed_at)}`}
-          </p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Email">
-          <a href={`mailto:${application.email}`} className="break-all text-[var(--admin-accent)] hover:underline">
-            {application.email}
-          </a>
-        </Field>
-        {application.contact_method === 'telegram' ? (
-          <Field label="Telegram">
-            <a
-              href={`https://t.me/${application.telegram_or_whatsapp.replace(/^@/, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="break-all text-[var(--admin-accent)] hover:underline"
-            >
-              {application.telegram_or_whatsapp}
-            </a>
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          <Field label="Primary link">
+            <ApplicationLink url={application.primary_link} />
           </Field>
-        ) : application.contact_method === 'whatsapp' ? (
-          <Field label="WhatsApp">
-            <a
-              href={`https://wa.me/${application.telegram_or_whatsapp.replace(/\D/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="break-all text-[var(--admin-accent)] hover:underline"
-            >
-              {application.telegram_or_whatsapp}
-            </a>
-          </Field>
-        ) : (
-          <Field label="WhatsApp / Telegram">{application.telegram_or_whatsapp}</Field>
-        )}
-        <Field label="Country">{application.country}</Field>
-        <Field label="Preferred start date">{application.preferred_start_date}</Field>
-        <Field label="Confirmed start date">
-          <input
-            type="date"
-            value={confirmedDraft}
-            onChange={(event) => setConfirmedDraft(event.target.value)}
-            onBlur={commitConfirmedDate}
-            className={DATE_INPUT_CLASS}
-          />
-        </Field>
-      </div>
+          {application.linkedin && (
+            <Field label="LinkedIn">
+              <ApplicationLink url={application.linkedin} />
+            </Field>
+          )}
+          {application.extra_link && (
+            <Field label={track.apply.extraLinkLabel}>
+              <ApplicationLink url={application.extra_link} />
+            </Field>
+          )}
+        </div>
+      </SectionCard>
 
-      <Field label="About">
-        <p className="whitespace-pre-wrap leading-relaxed">{application.about}</p>
-      </Field>
-      <Field label="Planned contribution">
-        <p className="whitespace-pre-wrap leading-relaxed">{application.contribution}</p>
-      </Field>
-      {application.content_studio_plans && (
-        <Field label="Content studio plans">
-          <p className="whitespace-pre-wrap leading-relaxed">{application.content_studio_plans}</p>
+      <SectionCard title="Application">
+        <Field label="About">
+          <p className="whitespace-pre-wrap rounded-md bg-[var(--admin-ink)] p-3 leading-relaxed">{application.about}</p>
         </Field>
-      )}
-
-      <div className="space-y-3">
-        <Field label="Primary link">
-          <ApplicationLink url={application.primary_link} />
+        <Field label="Planned contribution">
+          <p className="whitespace-pre-wrap rounded-md bg-[var(--admin-ink)] p-3 leading-relaxed">{application.contribution}</p>
         </Field>
-        {application.linkedin && (
-          <Field label="LinkedIn">
-            <ApplicationLink url={application.linkedin} />
+        {application.content_studio_plans && (
+          <Field label="Content studio plans">
+            <p className="whitespace-pre-wrap rounded-md bg-[var(--admin-ink)] p-3 leading-relaxed">{application.content_studio_plans}</p>
           </Field>
         )}
-        {application.extra_link && (
-          <Field label={track.apply.extraLinkLabel}>
-            <ApplicationLink url={application.extra_link} />
-          </Field>
-        )}
-      </div>
+      </SectionCard>
 
-      <div className="space-y-3 border-t border-[var(--admin-border)] pt-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--admin-faint)]">Email history</p>
+      <SectionCard title="Email history">
         {emailLogs.length === 0 ? (
           <p className="text-sm text-[var(--admin-faint)]">No emails yet.</p>
         ) : (
@@ -270,10 +243,9 @@ function ApplicationDetails({
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
 
-      <div className="space-y-3 border-t border-[var(--admin-border)] pt-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--admin-faint)]">Review notes</p>
+      <SectionCard title="Review notes">
         {notes.length === 0 && <p className="text-sm text-[var(--admin-faint)]">No notes yet.</p>}
         {notes.map((note) => (
           <div key={note.id} className="rounded-md border border-[var(--admin-border)] bg-[var(--admin-ink)] p-4">
@@ -296,7 +268,7 @@ function ApplicationDetails({
             {isAddingNote ? <Loader2 className="size-4 animate-spin" /> : 'Add note'}
           </Button>
         </div>
-      </div>
+      </SectionCard>
 
       {resendLog && (
         <ResendEmailDialog
@@ -320,7 +292,7 @@ function ApplicationDetails({
 // another row switches the drawer content in place. Closes via X only —
 // outside interaction is deliberately not a dismiss.
 export function DetailsSheet({ onClose, ...props }: DetailsSheetProps) {
-  const { application } = props
+  const { application, onStatusSelect } = props
   const [isFullscreen, setIsFullscreen] = useState(false)
   // Terminal decisions carry their variant in the badge; legacy null rows read as the direct variant.
   const statusLabel =
@@ -343,12 +315,30 @@ export function DetailsSheet({ onClose, ...props }: DetailsSheetProps) {
             <Badge className="border border-[var(--admin-border)] bg-transparent text-[var(--admin-muted)]">
               {TRACKS[application.track].shortName}
             </Badge>
-            <Badge className={`border-0 ${STATUS_CONFIG[application.status].bgColor} ${STATUS_CONFIG[application.status].color}`}>
-              {statusLabel}
-            </Badge>
+            {/* Same interaction as the table's status cell: the badge IS the menu.
+                modal={false}: a modal menu locks body pointer-events, and opening the
+                email dialog from a menu item leaves that lock stuck (radix #1241). */}
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)] ${STATUS_CONFIG[application.status].bgColor} ${STATUS_CONFIG[application.status].color}`}
+                >
+                  {statusLabel}
+                  <ChevronDown className="size-3 opacity-70" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <StatusMenuItems application={application} onSelect={onStatusSelect} exclude={[application.status]} />
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SheetTitle>
           <SheetDescription className="text-[var(--admin-faint)]">
             Applied {formatDateTimeGMT7(application.created_at)} (GMT+7)
+            {application.status_changed_by &&
+              ` · Last changed by ${application.status_changed_by}${
+                application.status_changed_at ? ` · ${formatDateTimeGMT7(application.status_changed_at)}` : ''
+              }`}
           </SheetDescription>
         </SheetHeader>
         <button

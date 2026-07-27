@@ -42,6 +42,8 @@ interface ComposerProps {
   baseline?: EmailContent
   title: string
   description: React.ReactNode
+  /** Extra row rendered between the header and the Preview/Edit toggle. */
+  headerExtra?: React.ReactNode
   isPending: boolean
   onCancel: () => void
   /** Footer buttons; override is undefined while content matches the baseline. */
@@ -54,6 +56,7 @@ function EmailComposerDialog({
   baseline,
   title,
   description,
+  headerExtra,
   isPending,
   onCancel,
   renderFooter,
@@ -82,6 +85,8 @@ function EmailComposerDialog({
           <DialogTitle className="text-[var(--admin-text)]">{title}</DialogTitle>
           <DialogDescription className="text-[var(--admin-faint)]">{description}</DialogDescription>
         </DialogHeader>
+
+        {headerExtra}
 
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" className={editing ? BTN_OUTLINE : BTN_TOGGLE_ACTIVE} onClick={() => setEditing(false)}>
@@ -148,14 +153,16 @@ function EmailComposerDialog({
 interface EmailPreviewDialogProps {
   application: Application
   targetStatus: ApplicationStatus
-  /** Always a concrete boolean when targetStatus is accepted/rejected; undefined for interview. */
+  /** Initial variant — a concrete boolean for accepted/rejected, undefined for interview. */
   decidedAfterInterview?: boolean
   isPending: boolean
-  onConfirm: (sendEmail: boolean, override?: EmailOverride) => void
+  onConfirm: (sendEmail: boolean, override?: EmailOverride, decidedAfterInterview?: boolean) => void
   onCancel: () => void
 }
 
 // Status-transition flow: confirm updates the status with or without the email.
+// For accepted/rejected the admin picks the decision variant here, via a
+// segmented toggle above the composer.
 export function EmailPreviewDialog({
   application,
   targetStatus,
@@ -164,24 +171,52 @@ export function EmailPreviewDialog({
   onConfirm,
   onCancel,
 }: EmailPreviewDialogProps) {
+  const [variant, setVariant] = useState(decidedAfterInterview)
   // Preview the variant the admin picked BEFORE the row is updated — the server
   // writes decided_after_interview in the same update that triggers the send,
   // so rendering from this projection preserves preview = send.
   const previewApplication = useMemo<Application>(
-    () => ({ ...application, decided_after_interview: decidedAfterInterview ?? application.decided_after_interview }),
-    [application, decidedAfterInterview],
+    () => ({ ...application, decided_after_interview: variant ?? application.decided_after_interview }),
+    [application, variant],
   )
   const emailType = STATUS_EMAIL[targetStatus]
   if (!emailType) return null
-  const title =
-    targetStatus === 'accepted' || targetStatus === 'rejected'
-      ? `Set status to “${STATUS_CONFIG[targetStatus].label}” · ${decisionVariantLabel(targetStatus, decidedAfterInterview ?? null)}`
-      : `Set status to “${STATUS_CONFIG[targetStatus].label}”`
+  const isDecision = targetStatus === 'accepted' || targetStatus === 'rejected'
+  const title = isDecision
+    ? `Set status to “${STATUS_CONFIG[targetStatus].label}” · ${decisionVariantLabel(targetStatus, variant ?? null)}`
+    : `Set status to “${STATUS_CONFIG[targetStatus].label}”`
   return (
     <EmailComposerDialog
+      // Remount on variant change so the composer reloads the fresh template.
+      // In-progress edits are discarded — intentional: they were written for
+      // the other variant's email.
+      key={String(variant)}
       application={previewApplication}
       emailType={emailType}
       title={title}
+      headerExtra={
+        isDecision ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[var(--admin-muted)]">Decision</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className={variant ? BTN_OUTLINE : BTN_TOGGLE_ACTIVE}
+              onClick={() => setVariant(false)}
+            >
+              {targetStatus === 'accepted' ? 'Early (no interview)' : 'Before interview'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className={variant ? BTN_TOGGLE_ACTIVE : BTN_OUTLINE}
+              onClick={() => setVariant(true)}
+            >
+              After interview
+            </Button>
+          </div>
+        ) : undefined
+      }
       description={
         <>
           The email below will be sent to{' '}
@@ -196,10 +231,10 @@ export function EmailPreviewDialog({
           <Button variant="ghost" className={BTN_GHOST} onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
-          <Button variant="outline" className={BTN_OUTLINE} onClick={() => onConfirm(false, override)} disabled={isPending}>
+          <Button variant="outline" className={BTN_OUTLINE} onClick={() => onConfirm(false, override, variant)} disabled={isPending}>
             Update without sending
           </Button>
-          <Button className={BTN_ACCENT} onClick={() => onConfirm(true, override)} disabled={isPending || !canSend}>
+          <Button className={BTN_ACCENT} onClick={() => onConfirm(true, override, variant)} disabled={isPending || !canSend}>
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update & send email'}
           </Button>
         </>

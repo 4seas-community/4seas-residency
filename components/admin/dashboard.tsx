@@ -859,7 +859,9 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
           targetStatus={pending.status}
           decidedAfterInterview={pending.decidedAfterInterview}
           isPending={isUpdating}
-          onConfirm={(sendEmail, override) => void applyStatus(pendingApp, pending.status, sendEmail, override, pending.decidedAfterInterview)}
+          onConfirm={(sendEmail, override, decidedAfterInterview) =>
+            void applyStatus(pendingApp, pending.status, sendEmail, override, decidedAfterInterview ?? pending.decidedAfterInterview)
+          }
           onCancel={() => setPending(null)}
         />
       )}
