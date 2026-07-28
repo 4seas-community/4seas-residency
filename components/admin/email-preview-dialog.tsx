@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { TRACKS, TRACK_IDS } from '@/lib/content/tracks'
 import { getEmailContent, renderCustomEmail, type EmailContent } from '@/lib/email/templates'
 import type { Application, ApplicationStatus, EmailLog, EmailOverride, EmailType } from '@/lib/types'
 import { STATUS_CONFIG } from '@/lib/types'
@@ -251,12 +252,21 @@ interface ResendEmailDialogProps {
   onCancel: () => void
 }
 
+/** Preserve the Track used by a default email when an application is later reclassified. */
+function applicationAtLoggedTrack(application: Application, log: EmailLog): Application {
+  if (!log.subject || log.body_text) return application
+  const publicTrack = TRACK_IDS.find((trackId) => log.subject.includes(TRACKS[trackId].name))
+  if (publicTrack) return { ...application, track: publicTrack }
+  if (log.subject.includes('4Seas Residency')) return { ...application, track: 'other' }
+  return application
+}
+
 // Resend flow: opens with what that log actually sent (edited body if any),
 // editable before sending again. Replaces the old window.confirm.
 export function ResendEmailDialog({ application, log, isPending, onConfirm, onCancel }: ResendEmailDialogProps) {
   const verb = log.outcome === 'sent' ? 'Resend' : 'Send'
   const baseline = useMemo(() => {
-    const template = getEmailContent(log.email_type, application)
+    const template = getEmailContent(log.email_type, applicationAtLoggedTrack(application, log))
     return log.body_text ? renderCustomEmail(log.subject || template.subject, log.body_text) : template
   }, [log, application])
 
@@ -314,7 +324,7 @@ interface EmailLogDialogProps {
 // any), re-rendered from the same isomorphic module the server used.
 export function EmailLogDialog({ application, log, onResend, onClose }: EmailLogDialogProps) {
   const content = useMemo(() => {
-    const template = getEmailContent(log.email_type, application)
+    const template = getEmailContent(log.email_type, applicationAtLoggedTrack(application, log))
     return log.body_text ? renderCustomEmail(log.subject || template.subject, log.body_text) : template
   }, [log, application])
   const previewHtml = content.html.replace('<body', '<head><base target="_blank"></head><body')

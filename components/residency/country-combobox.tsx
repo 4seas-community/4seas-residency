@@ -37,15 +37,15 @@ export function CountryCombobox({ id, value, onChange, invalid }: CountryCombobo
           aria-invalid={invalid || undefined}
           className="w-full justify-between font-normal bg-transparent hover:bg-transparent"
         >
-          {value || <span className="text-muted-foreground">Select your country</span>}
+          {value || <span className="text-muted-foreground">Select your country or region</span>}
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search country..." />
+          <CommandInput placeholder="Search country or region..." />
           <CommandList>
-            <CommandEmpty>No country found.</CommandEmpty>
+            <CommandEmpty>No country or region found.</CommandEmpty>
             <CommandGroup>
               {COUNTRIES.map((country) => (
                 <CommandItem

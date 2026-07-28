@@ -12,9 +12,21 @@ function DropdownMenuTrigger(props: React.ComponentProps<typeof DropdownMenuPrim
   return <DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />
 }
 
-function DropdownMenuContent({ className, sideOffset = 6, ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+function DropdownMenuContent({
+  className,
+  sideOffset = 6,
+  container,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
+  /**
+   * Portal target. Inside a modal Dialog the default (document.body) puts the
+   * menu outside the dialog's dismissable layer, which dismisses it on the same
+   * pointerdown that opened it — pass the dialog's content node instead.
+   */
+  container?: HTMLElement | null
+}) {
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={container ?? undefined}>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}

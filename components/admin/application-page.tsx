@@ -1,25 +1,22 @@
 'use client'
 
 // Full-page view of one application (/admin/applications/[id]) — the drawer's
-// "open as page" target. Same cards and title row as the drawer, page chrome
-// around them, and the same server actions glued to single-application state.
+// "open as page" target. Shares the drawer's title block and detail body, wraps
+// them in page chrome, and glues the same server actions to single-app state.
 
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import {
-  ApplicationDetails,
-  ApplicationMetaLine,
-  ApplicationTitleRow,
-} from '@/components/admin/details-sheet'
+import { ApplicationDetails, ApplicationTitleBlock } from '@/components/admin/details-sheet'
 import { ThemeToggle } from '@/components/admin/theme-toggle'
 import { EmailPreviewDialog } from '@/components/admin/email-preview-dialog'
-import { logout, updateStatus, updateDates, addNote, resendEmail } from '@/lib/actions/admin'
+import { logout, updateStatus, updateDates, updateTrack, addNote, resendEmail } from '@/lib/actions/admin'
 import type { ApplicationDetailData } from '@/lib/db'
+import { getEmailContent } from '@/lib/email/templates'
 import { STATUS_CONFIG } from '@/lib/types'
-import type { Application, ApplicationStatus, EmailLog, EmailOverride, ReviewNote } from '@/lib/types'
+import type { AdminTrackId, Application, ApplicationStatus, EmailLog, EmailOverride, ReviewNote } from '@/lib/types'
 import { defaultDecidedAfterInterview } from '@/lib/applications/utils'
 
 // Statuses whose transition triggers the email preview dialog
@@ -70,13 +67,21 @@ export function ApplicationPage({ initialData, adminName }: ApplicationPageProps
     decidedAfterInterview?: boolean,
   ) => {
     setIsUpdating(true)
-    const result = await updateStatus({
-      applicationId: application.id,
-      status,
-      sendEmail,
-      emailOverride,
-      decidedAfterInterview,
-    })
+    let result
+    try {
+      result = await updateStatus({
+        applicationId: application.id,
+        status,
+        sendEmail,
+        emailOverride,
+        decidedAfterInterview,
+      })
+    } catch {
+      // Without this the dialog's Send button spins forever with no explanation.
+      setIsUpdating(false)
+      toast.error('Failed to update status.')
+      return
+    }
     setIsUpdating(false)
     setPending(null)
 
@@ -94,7 +99,9 @@ export function ApplicationPage({ initialData, adminName }: ApplicationPageProps
       email_type: status as EmailLog['email_type'],
       outcome: result.email.outcome,
       error: result.email.error,
-      subject: emailOverride?.subject ?? '',
+      subject:
+        emailOverride?.subject ??
+        getEmailContent(status as EmailLog['email_type'], result.application).subject,
       body_text: emailOverride?.text ?? null,
     })
     if (result.email.outcome === 'sent') {
@@ -123,29 +130,64 @@ export function ApplicationPage({ initialData, adminName }: ApplicationPageProps
 
   const handleUpdateDates = async (patch: { confirmedStartDate: string }): Promise<void> => {
     const previous = application
-    // Optimistic: reflect the edit immediately, revert on failure.
+    // Optimistic: reflect the edit immediately, revert on failure — including a
+    // thrown action, or the page keeps a date the database never got.
     setApplication({ ...previous, confirmed_start_date: patch.confirmedStartDate })
-    const result = await updateDates({ applicationId: application.id, ...patch })
-    if (!result.ok) {
+    try {
+      const result = await updateDates({ applicationId: application.id, ...patch })
+      if (!result.ok) {
+        setApplication(previous)
+        toast.error(result.message ?? 'Failed to update dates.')
+        return
+      }
+      setApplication(result.application)
+    } catch {
       setApplication(previous)
-      toast.error(result.message ?? 'Failed to update dates.')
-      return
+      toast.error('Failed to update dates.')
     }
-    setApplication(result.application)
   }
 
-  const handleAddNote = async (text: string): Promise<boolean> => {
-    const result = await addNote({ applicationId: application.id, note: text })
-    if (!result.ok) {
-      toast.error(result.message ?? 'Failed to add note.')
+  const handleUpdateTrack = async (track: AdminTrackId): Promise<void> => {
+    const previous = application
+    setApplication({ ...previous, track })
+    try {
+      const result = await updateTrack({ applicationId: application.id, track })
+      if (!result.ok) {
+        setApplication(previous)
+        toast.error(result.message ?? 'Failed to update Track.')
+        return
+      }
+      setApplication(result.application)
+    } catch {
+      setApplication(previous)
+      toast.error('Failed to update Track.')
+    }
+  }
+
+  const handleAddNote = async (input: { authorName: string; note: string }): Promise<boolean> => {
+    try {
+      const result = await addNote({ applicationId: application.id, ...input })
+      if (!result.ok) {
+        toast.error(result.message ?? 'Failed to add note.')
+        return false
+      }
+      setNotes((prev) => [result.note, ...prev])
+      return true
+    } catch {
+      // A thrown action (offline, 500) must still surface — the composer keeps the draft.
+      toast.error('Failed to add note.')
       return false
     }
-    setNotes((prev) => [...prev, result.note])
-    return true
   }
 
   const handleRetryEmail = async (log: EmailLog, override?: EmailOverride) => {
-    const result = await resendEmail({ applicationId: application.id, emailType: log.email_type, emailOverride: override })
+    const result = await resendEmail({
+      applicationId: application.id,
+      emailType: log.email_type,
+      // Synthetic optimistic rows have no server row to resend from.
+      logId: log.id.startsWith('local-') ? undefined : log.id,
+      emailOverride: override,
+    })
     if (!result.ok) {
       toast.error(result.message ?? 'Failed to send email.')
       return
@@ -184,13 +226,8 @@ export function ApplicationPage({ initialData, adminName }: ApplicationPageProps
       </header>
 
       <main className="mx-auto w-full max-w-3xl">
-        <div className="space-y-1 px-5 pt-6">
-          <h1 className="flex flex-wrap items-center gap-2 text-xl font-semibold text-[var(--admin-text)]">
-            <ApplicationTitleRow application={application} onStatusSelect={requestStatus} />
-          </h1>
-          <p className="text-sm text-[var(--admin-faint)]">
-            <ApplicationMetaLine application={application} />
-          </p>
+        <div className="border-b border-[var(--admin-border)] pt-3">
+          <ApplicationTitleBlock application={application} onStatusSelect={requestStatus} />
         </div>
         <ApplicationDetails
           application={application}
@@ -198,6 +235,7 @@ export function ApplicationPage({ initialData, adminName }: ApplicationPageProps
           emailLogs={emailLogs}
           onStatusSelect={requestStatus}
           onAddNote={handleAddNote}
+          onUpdateTrack={handleUpdateTrack}
           onRetryEmail={handleRetryEmail}
           onUpdateDates={handleUpdateDates}
         />

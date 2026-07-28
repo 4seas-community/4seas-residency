@@ -7,10 +7,12 @@
   --admin-ink: #f4f5ef;
   --admin-panel: #ffffff;
   --admin-text: #173236;
-  --admin-accent: #477d6a;
+  /* Text ramp is AA-constrained against --admin-ink: 12.4 / 6.6 / 4.7. Accent
+     doubles as link text, so it must clear 4.5 too — do not lighten these. */
+  --admin-accent: #3f7160;
   --admin-accent-hover: #356956;
-  --admin-muted: #60746d;
-  --admin-faint: #8da098;
+  --admin-muted: #4a5a54;
+  --admin-faint: #5f7268;
   --admin-border: rgba(23, 50, 54, 0.13);
   --admin-soft: #e8f0ea;
   --status-submitted-bg: #e7eff9;

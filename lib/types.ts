@@ -1,4 +1,5 @@
-import type { TrackId } from '@/lib/content/tracks'
+export const ADMIN_TRACK_IDS = ['crypto', 'art', 'longevity', 'other'] as const
+export type AdminTrackId = (typeof ADMIN_TRACK_IDS)[number]
 
 export const ALL_STATUSES = ['submitted', 'reviewing', 'interview', 'accepted', 'rejected', 'cancelled'] as const
 export type ApplicationStatus = (typeof ALL_STATUSES)[number]
@@ -27,7 +28,7 @@ export interface EmailOverride {
 export interface Application {
   id: string
   created_at: string
-  track: TrackId
+  track: AdminTrackId
   status: ApplicationStatus
   full_name: string
   email: string
@@ -43,6 +44,10 @@ export interface Application {
   decided_after_interview: boolean | null
   about: string
   contribution: string
+  /** Nullable for applications submitted before migration 007. */
+  past_contribution: string | null
+  /** Nullable for applications submitted before migration 007. */
+  participation_commitment: string | null
   primary_link: string
   linkedin: string | null
   extra_link: string | null

@@ -33,7 +33,7 @@ export async function getApplicationDetail(id: string): Promise<ApplicationDetai
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null
   const [app, notes, logs] = await Promise.all([
     db().from('applications').select('*').eq('id', id).maybeSingle(),
-    db().from('review_notes').select('*').eq('application_id', id).order('created_at', { ascending: true }),
+    db().from('review_notes').select('*').eq('application_id', id).order('created_at', { ascending: false }),
     db().from('email_log').select('*').eq('application_id', id).order('created_at', { ascending: false }),
   ])
   if (app.error) throw app.error
@@ -51,7 +51,7 @@ export async function getApplicationDetail(id: string): Promise<ApplicationDetai
 export async function getDashboardData(): Promise<DashboardData> {
   const [apps, notes, logs] = await Promise.all([
     db().from('applications').select('*').order('created_at', { ascending: false }),
-    db().from('review_notes').select('*').order('created_at', { ascending: true }),
+    db().from('review_notes').select('*').order('created_at', { ascending: false }),
     db().from('email_log').select('*').order('created_at', { ascending: false }),
   ])
   if (apps.error) throw apps.error
