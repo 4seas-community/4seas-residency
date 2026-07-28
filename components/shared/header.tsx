@@ -13,14 +13,14 @@ export function Header() {
 
   const navLinks = [
     { href: '/', label: 'General' },
-    ...TRACK_IDS.map((id) => ({ href: `/residency/${id}`, label: TRACKS[id].name })),
+    ...TRACK_IDS.map((id) => ({ href: `/${id}`, label: TRACKS[id].name })),
   ]
 
   return (
     <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border">
       <div className="w-full px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
         <a href={COMMUNITY_LINKS.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-          <img src="/images/4seas-logo.png" alt="4Seas" className="h-6 md:h-8 w-auto" />
+          <img src="/residency/images/4seas-logo.png" alt="4Seas" className="h-6 md:h-8 w-auto" />
         </a>
 
         <nav className="hidden md:flex items-center gap-8">

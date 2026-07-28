@@ -60,7 +60,7 @@ export default async function ApplyPage({ params }: { params: Promise<{ track: s
                 </a>
               </Button>
               <Button variant="outline" asChild>
-                <Link href={`/residency/${track.id}`}>Back to {track.name}</Link>
+                <Link href={`/${track.id}`}>Back to {track.name}</Link>
               </Button>
             </div>
           </div>

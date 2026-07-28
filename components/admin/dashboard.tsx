@@ -372,9 +372,11 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
   const [sort, setSort] = useState<SortState>({ column: 'submitted', direction: 'desc' })
   const [trackFilter, setTrackFilter] = useState<AdminTrackId | 'all'>('all')
   const [countryFilter, setCountryFilter] = useState<string[]>([])
-  // Move-in scope defaults to the current calendar year.
+  // Move-in scope runs from the start of the v1 record (the oldest migrated
+  // application moves in 2025-06-15) through the end of the current year, so
+  // imported history is in scope by default instead of silently filtered out.
   const thisYear = new Date().getFullYear()
-  const [moveInFrom, setMoveInFrom] = useState(`${thisYear}-01-01`)
+  const [moveInFrom, setMoveInFrom] = useState('2025-01-01')
   const [moveInTo, setMoveInTo] = useState(`${thisYear}-12-31`)
 
   const [pageSize, setPageSize] = useState(20)
@@ -671,7 +673,7 @@ export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) 
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <img
-              src="/apple-icon.png"
+              src="/residency/apple-icon.png"
               alt="4Seas"
               width={36}
               height={36}

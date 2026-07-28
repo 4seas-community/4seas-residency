@@ -82,7 +82,7 @@ function TrackCard({ track, index }: { track: TrackConfig; index: number }) {
         </div>
 
         <div className="flex gap-3">
-          <Link href={`/residency/${track.id}`} className="flex-1">
+          <Link href={`/${track.id}`} className="flex-1">
             <Button variant="outline" className="w-full group/btn">
               Explore {track.shortName}
               <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
