@@ -18,7 +18,7 @@ export default async function AdminLoginPage() {
         <div className="mb-10">
           <div className="mb-8 flex items-center gap-3">
             <img
-              src="/apple-icon.png"
+              src="/residency/apple-icon.png"
               alt="4Seas"
               width={40}
               height={40}

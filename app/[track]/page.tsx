@@ -26,7 +26,7 @@ export default async function TrackPage({ params }: { params: Promise<{ track: s
   const track = getTrack((await params).track)
   if (!track) notFound()
 
-  const applyHref = `/residency/${track.id}/apply`
+  const applyHref = `/${track.id}/apply`
 
   return (
     <main className="min-h-screen">

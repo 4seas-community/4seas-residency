@@ -203,7 +203,7 @@ export default function ApplicationForm({ track, startDateOptions }: Application
         </div>
 
         <Button asChild>
-          <Link href={`/residency/${track.id}`}>Back to {track.name}</Link>
+          <Link href={`/${track.id}`}>Back to {track.name}</Link>
         </Button>
       </motion.div>
     )

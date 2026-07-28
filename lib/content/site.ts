@@ -29,7 +29,7 @@ export const SITE = {
     tagline: 'Live with the community. Build in public, build in person.',
     description:
       '4Seas Residency is a community-based residency program in Chiang Mai for builders, artists, researchers, founders, creators, and long-term thinkers who want to live, work, create, and contribute inside a real community.',
-    image: '/images/hero-bg.png',
+    image: '/residency/images/hero-bg.png',
   },
   sharedExperience: {
     title: 'A Residency Inside a Living Community',

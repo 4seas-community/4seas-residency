@@ -6,7 +6,10 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     if (!request.cookies.get('admin_session')?.value) {
-      return NextResponse.redirect(new URL('/admin/login', request.url))
+      // NextResponse.redirect does not apply basePath; cloning nextUrl keeps it.
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = '/admin/login'
+      return NextResponse.redirect(loginUrl)
     }
   }
   return NextResponse.next()
