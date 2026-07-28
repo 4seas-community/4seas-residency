@@ -74,9 +74,10 @@ export function renderCustomEmail(subject: string, text: string): EmailContent {
 }
 
 export function getEmailContent(type: EmailType, application: Application): EmailContent {
-  const track = TRACKS[application.track]
+  const track = application.track === 'other' ? undefined : TRACKS[application.track]
   const trackName = track?.name ?? 'Residency'
   const firstName = application.full_name.trim().split(/\s+/)[0] || application.full_name
+  const escapedFirstName = escapeHtml(firstName)
   const startDate = formatStartDate(application.confirmed_start_date)
 
   switch (type) {
@@ -93,7 +94,7 @@ export function getEmailContent(type: EmailType, application: Application): Emai
         subject,
         text: bodyText.join('\n\n'),
         html: wrapLayout(
-          p(`Hi ${firstName},`) +
+          p(`Hi ${escapedFirstName},`) +
             p(`Good news — we'd like to invite you to a short interview for the <strong>4Seas ${trackName}</strong> in Chiang Mai.`) +
             p(`Message us on <a href="${COMMUNITY_LINKS.telegram}" style="color:#0A6B5A;">Telegram</a> with a few time slots that work for you, and we'll confirm one. Please note our team is based in Chiang Mai (<strong>GMT+7</strong>).`) +
             p(`The interview is an informal conversation about your work, your plans during the residency, and what you'd like to contribute to the community.`) +
@@ -115,7 +116,7 @@ export function getEmailContent(type: EmailType, application: Application): Emai
         subject,
         text: bodyText.join('\n\n'),
         html: wrapLayout(
-          p(`Hi ${firstName},`) +
+          p(`Hi ${escapedFirstName},`) +
             p(`Congratulations — you've been accepted to the <strong>4Seas ${trackName}</strong> in Chiang Mai!`) +
             p(`Your residency start date: <strong>${startDate}</strong>.`) +
             p(
@@ -149,7 +150,7 @@ export function getEmailContent(type: EmailType, application: Application): Emai
         subject,
         text: bodyText.join('\n\n'),
         html: wrapLayout(
-          p(`Hi ${firstName},`) +
+          p(`Hi ${escapedFirstName},`) +
             p(`Thank you for applying to the <strong>4Seas ${trackName}</strong>. After careful review, we're unable to offer you a spot in this cycle.`) +
             p(`This is mostly a matter of fit and limited space for each cycle — we'd genuinely love to see you apply again in a future cycle.`) +
             (afterInterview
@@ -176,7 +177,7 @@ export function getEmailContent(type: EmailType, application: Application): Emai
         subject,
         text: bodyText.join('\n\n'),
         html: wrapLayout(
-          p(`Hi ${firstName},`) +
+          p(`Hi ${escapedFirstName},`) +
             p(`Your 4Seas residency starts on <strong>${startDate}</strong> — here's everything you need for arrival.`) +
             p(`<strong>Address:</strong> 4Seas, Chiang Mai (detailed address &amp; map link will be provided here).`) +
             p(`<strong>Getting here:</strong> from Chiang Mai International Airport, a taxi/Grab takes about 20-30 minutes.`) +

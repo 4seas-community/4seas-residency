@@ -1,8 +1,15 @@
 // Pure list helpers for the admin dashboard (ported from the reference repo,
 // trimmed to the v2 field set — no legacy status mapping).
 
-import type { Application, ApplicationStatus } from '@/lib/types'
-import type { TrackId } from '@/lib/content/tracks'
+import { STATUS_CONFIG } from '@/lib/types'
+import type { AdminTrackId, Application, ApplicationStatus } from '@/lib/types'
+
+export const ADMIN_TRACK_LABELS: Record<AdminTrackId, string> = {
+  crypto: 'Crypto',
+  art: 'Art',
+  longevity: 'Longevity',
+  other: 'Other',
+}
 
 /**
  * Status filter selected via the summary cards: 'all', a raw status (raw
@@ -18,7 +25,7 @@ export type StatusFilter =
   | 'rejected_before'
   | 'rejected_after'
 
-export type SortColumn = 'name' | 'submitted' | 'confirmed' | 'country'
+export type SortColumn = 'name' | 'track' | 'submitted' | 'confirmed' | 'country' | 'status'
 export type SortDirection = 'asc' | 'desc'
 
 /** Prefix a bare URL with https:// so it is safe to use in an anchor href. */
@@ -95,10 +102,9 @@ export function countByFilter(applications: Application[], filter: StatusFilter)
 export interface ApplicationFilters {
   statusFilter: StatusFilter
   searchQuery: string
-  /** Column multi-selects; empty array = no filter. */
-  tracks: TrackId[]
+  /** Track is single-select in the UI; empty array = All. */
+  tracks: AdminTrackId[]
   countries: string[]
-  statuses: ApplicationStatus[]
   /** Inclusive 'YYYY-MM-DD' bounds on confirmed_start_date; '' = unbounded. */
   moveInFrom: string
   moveInTo: string
@@ -106,14 +112,13 @@ export interface ApplicationFilters {
 
 export function filterApplications(
   applications: Application[],
-  { statusFilter, searchQuery, tracks, countries, statuses, moveInFrom, moveInTo }: ApplicationFilters,
+  { statusFilter, searchQuery, tracks, countries, moveInFrom, moveInTo }: ApplicationFilters,
 ): Application[] {
   const searchTerms = searchQuery.trim().split(/\s+/).map(normalizeSearchText).filter(Boolean)
   return applications.filter((app) => {
     if (!matchesStatusFilter(app, statusFilter)) return false
     if (tracks.length > 0 && !tracks.includes(app.track)) return false
     if (countries.length > 0 && !countries.includes(app.country)) return false
-    if (statuses.length > 0 && !statuses.includes(app.status)) return false
 
     // 'YYYY-MM-DD' compares correctly as a string
     if (moveInFrom && app.confirmed_start_date < moveInFrom) return false
@@ -125,11 +130,15 @@ export function filterApplications(
         app.email,
         app.telegram_or_whatsapp,
         app.country,
+        ADMIN_TRACK_LABELS[app.track],
+        STATUS_CONFIG[app.status].label,
         app.primary_link,
         app.linkedin,
         app.extra_link,
         app.about,
         app.contribution,
+        app.past_contribution,
+        app.participation_commitment,
       ]
         .map(normalizeSearchText)
         .join('|')
@@ -140,15 +149,28 @@ export function filterApplications(
 }
 
 function compareBy(a: Application, b: Application, column: SortColumn): number {
+  const trackOrder: Record<AdminTrackId, number> = { crypto: 0, art: 1, longevity: 2, other: 3 }
+  const statusOrder: Record<ApplicationStatus, number> = {
+    submitted: 0,
+    reviewing: 1,
+    interview: 2,
+    accepted: 3,
+    rejected: 4,
+    cancelled: 5,
+  }
   switch (column) {
     case 'name':
       return a.full_name.localeCompare(b.full_name)
     case 'submitted':
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    case 'track':
+      return trackOrder[a.track] - trackOrder[b.track]
     case 'confirmed':
       return a.confirmed_start_date.localeCompare(b.confirmed_start_date)
     case 'country':
       return a.country.localeCompare(b.country)
+    case 'status':
+      return statusOrder[a.status] - statusOrder[b.status]
   }
 }
 

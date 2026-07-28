@@ -36,6 +36,8 @@ interface FormData {
   preferredStartDate: string
   about: string
   contribution: string
+  pastContribution: string
+  participationCommitment: string
   primaryLink: string
   linkedin: string
   extraLink: string
@@ -52,6 +54,8 @@ const initialFormData: FormData = {
   preferredStartDate: '',
   about: '',
   contribution: '',
+  pastContribution: '',
+  participationCommitment: '',
   primaryLink: '',
   linkedin: '',
   extraLink: '',
@@ -70,7 +74,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 // Validation + focus order, top to bottom as rendered.
 const FIELD_ORDER: (keyof FormData)[] = [
   'fullName', 'email', 'telegramOrWhatsapp', 'preferredStartDate', 'country',
-  'about', 'contribution', 'primaryLink',
+  'about', 'contribution', 'pastContribution', 'participationCommitment', 'primaryLink',
 ]
 
 const fieldId = (field: keyof FormData) => `apply-${field}`
@@ -84,10 +88,15 @@ function validate(data: FormData): FieldErrors {
       data.contactMethod === 'whatsapp' ? 'Please enter your WhatsApp number' : 'Please enter your Telegram username'
   }
   if (!data.preferredStartDate) errors.preferredStartDate = 'Please select a start date'
-  if (!data.country.trim()) errors.country = 'Please select your country'
+  if (!data.country.trim()) errors.country = 'Please select your country or region'
   if (!data.about.trim()) errors.about = 'Please tell us about yourself'
   else if (countWords(data.about) > 300) errors.about = 'Please keep your response under 300 words'
   if (!data.contribution.trim()) errors.contribution = 'Please tell us what you plan to contribute'
+  else if (countWords(data.contribution) > 300) errors.contribution = 'Please keep your response under 300 words'
+  if (!data.pastContribution.trim()) errors.pastContribution = 'Please tell us about a past contribution'
+  else if (countWords(data.pastContribution) > 300) errors.pastContribution = 'Please keep your response under 300 words'
+  if (!data.participationCommitment.trim()) errors.participationCommitment = 'Please describe your participation commitment'
+  else if (countWords(data.participationCommitment) > 300) errors.participationCommitment = 'Please keep your response under 300 words'
   if (!data.primaryLink.trim()) errors.primaryLink = 'Please provide at least one link'
   return errors
 }
@@ -110,8 +119,14 @@ export default function ApplicationForm({ track, startDateOptions }: Application
     setServerError(null)
   }
 
-  const wordCount = countWords(formData.about)
-  const isOverLimit = wordCount > 300
+  const aboutWordCount = countWords(formData.about)
+  const isAboutOverLimit = aboutWordCount > 300
+  const contributionWordCount = countWords(formData.contribution)
+  const isContributionOverLimit = contributionWordCount > 300
+  const pastContributionWordCount = countWords(formData.pastContribution)
+  const isPastContributionOverLimit = pastContributionWordCount > 300
+  const participationCommitmentWordCount = countWords(formData.participationCommitment)
+  const isParticipationCommitmentOverLimit = participationCommitmentWordCount > 300
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -327,7 +342,7 @@ export default function ApplicationForm({ track, startDateOptions }: Application
 
         <div className="space-y-2">
           <Label htmlFor={fieldId('country')}>
-            Country <span className="text-red-500">*</span>
+            Country/Region <span className="text-red-500">*</span>
           </Label>
           <CountryCombobox
             id={fieldId('country')}
@@ -364,21 +379,22 @@ export default function ApplicationForm({ track, startDateOptions }: Application
             onChange={(e) => handleInputChange('about', e.target.value)}
             placeholder="Tell us about yourself..."
             rows={6}
-            className={isOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
+            className={isAboutOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
           />
-          <p className={`text-xs ${isOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
-            {wordCount}/300 words {isOverLimit && '- Please reduce your response'}
+          <p className={`text-xs ${isAboutOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
+            {aboutWordCount}/300 words {isAboutOverLimit && '- Please reduce your response'}
           </p>
           <FieldError message={errors.about} />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor={fieldId('contribution')}>
-            What do you plan to contribute? <span className="text-red-500">*</span>
+            How do you plan to contribute during your stay? <span className="text-red-500">*</span>
           </Label>
           <p className="text-sm text-muted-foreground">
-            Tell us how you imagine contributing to the community during your stay. If you don&apos;t have anything
-            specific in mind yet, please describe the part you think you could contribute.
+            Please describe one or two concrete ways you hope to contribute to the 4Seas community during your
+            residency. This could include sharing knowledge, leading a session, helping with operations, creating
+            content, supporting research, cooking, building projects, or anything else that creates value for others.
           </p>
           <Textarea
             id={fieldId('contribution')}
@@ -386,10 +402,62 @@ export default function ApplicationForm({ track, startDateOptions }: Application
             maxLength={5000}
             value={formData.contribution}
             onChange={(e) => handleInputChange('contribution', e.target.value)}
-            placeholder="Share your planned contribution, or the part you think you could contribute..."
+            placeholder="Describe your planned contribution..."
             rows={5}
+            className={isContributionOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
           />
+          <p className={`text-xs ${isContributionOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
+            {contributionWordCount}/300 words {isContributionOverLimit && '- Please reduce your response'}
+          </p>
           <FieldError message={errors.contribution} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={fieldId('pastContribution')}>
+            Tell us about a time you contributed to a community. <span className="text-red-500">*</span>
+          </Label>
+          <p className="text-sm text-muted-foreground">
+            Briefly describe a project, community, or team where you actively contributed. What did you do, and what
+            was the impact?
+          </p>
+          <Textarea
+            id={fieldId('pastContribution')}
+            aria-invalid={!!errors.pastContribution || undefined}
+            maxLength={5000}
+            value={formData.pastContribution}
+            onChange={(e) => handleInputChange('pastContribution', e.target.value)}
+            placeholder="Share a past contribution experience..."
+            rows={5}
+            className={isPastContributionOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
+          />
+          <p className={`text-xs ${isPastContributionOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
+            {pastContributionWordCount}/300 words {isPastContributionOverLimit && '- Please reduce your response'}
+          </p>
+          <FieldError message={errors.pastContribution} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={fieldId('participationCommitment')}>
+            What commitment are you willing to make during your stay? <span className="text-red-500">*</span>
+          </Label>
+          <p className="text-sm text-muted-foreground">
+            4Seas is a community built by people who both learn and contribute. What level of participation can we
+            realistically expect from you during your residency?
+          </p>
+          <Textarea
+            id={fieldId('participationCommitment')}
+            aria-invalid={!!errors.participationCommitment || undefined}
+            maxLength={5000}
+            value={formData.participationCommitment}
+            onChange={(e) => handleInputChange('participationCommitment', e.target.value)}
+            placeholder="Describe your expected level of participation..."
+            rows={5}
+            className={isParticipationCommitmentOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
+          />
+          <p className={`text-xs ${isParticipationCommitmentOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
+            {participationCommitmentWordCount}/300 words {isParticipationCommitmentOverLimit && '- Please reduce your response'}
+          </p>
+          <FieldError message={errors.participationCommitment} />
         </div>
       </div>
 

@@ -7,7 +7,9 @@ import { db } from '@/lib/db'
 import { sendApplicationEmail, logSkippedEmail } from '@/lib/email/send'
 import {
   ALL_STATUSES,
+  ADMIN_TRACK_IDS,
   type ActionResult,
+  type AdminTrackId,
   type Application,
   type ApplicationStatus,
   type EmailOverride,
@@ -153,8 +155,33 @@ export async function updateDates(input: {
   return { ok: true, application: data as Application }
 }
 
-export async function addNote(input: { applicationId: string; note: string }): Promise<ActionResult<{ note: ReviewNote }>> {
-  const session = await requireAdmin()
+export async function updateTrack(input: {
+  applicationId: string
+  track: AdminTrackId
+}): Promise<ActionResult<{ application: Application }>> {
+  await requireAdmin()
+
+  const track = z.enum(ADMIN_TRACK_IDS).safeParse(input.track)
+  if (!track.success) return { ok: false, error: 'validation', message: 'Unknown Track.' }
+
+  const { data, error } = await db()
+    .from('applications')
+    .update({ track: track.data })
+    .eq('id', input.applicationId)
+    .select()
+    .single()
+  if (error || !data) return { ok: false, error: 'server', message: 'Failed to update Track.' }
+  return { ok: true, application: data as Application }
+}
+
+export async function addNote(input: {
+  applicationId: string
+  authorName: string
+  note: string
+}): Promise<ActionResult<{ note: ReviewNote }>> {
+  await requireAdmin()
+  const authorName = z.string().trim().min(1).max(200).safeParse(input.authorName)
+  if (!authorName.success) return { ok: false, error: 'validation', message: 'Reviewer name cannot be empty.' }
   const note = z.string().trim().min(1).max(5000).safeParse(input.note)
   if (!note.success) return { ok: false, error: 'validation', message: 'Note cannot be empty.' }
 
@@ -162,7 +189,7 @@ export async function addNote(input: { applicationId: string; note: string }): P
     .from('review_notes')
     .insert({
       application_id: input.applicationId,
-      author_name: session.displayName,
+      author_name: authorName.data,
       note: note.data,
     })
     .select()
@@ -174,6 +201,8 @@ export async function addNote(input: { applicationId: string; note: string }): P
 export async function resendEmail(input: {
   applicationId: string
   emailType: EmailType
+  /** The exact log row being resent. Omitted for rows that only exist client-side. */
+  logId?: string
   emailOverride?: EmailOverride
 }): Promise<ActionResult<{ outcome: 'sent' | 'failed'; error?: string }>> {
   const session = await requireAdmin()
@@ -190,17 +219,19 @@ export async function resendEmail(input: {
     }
     override = parsed.data
   } else {
-    // Retry resends what was last on screen: the most recent log row for this email
-    // type carries body_text when the admin edited it; null means template verbatim.
-    const { data: lastLog } = await db()
+    // Resend exactly the row the admin clicked — body_text carries their edit, null
+    // means the template was sent verbatim. Keying off "most recent of this type"
+    // would resend a newer row's body while the dialog previewed the older one.
+    let query = db()
       .from('email_log')
       .select('subject, body_text')
       .eq('application_id', input.applicationId)
       .eq('email_type', input.emailType)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    override = lastLog?.body_text ? { subject: lastLog.subject, text: lastLog.body_text } : undefined
+    const sourceLog = input.logId
+      ? await query.eq('id', input.logId).maybeSingle()
+      : await query.order('created_at', { ascending: false }).limit(1).maybeSingle()
+    const log = sourceLog.data
+    override = log?.body_text ? { subject: log.subject, text: log.body_text } : undefined
   }
 
   const result = await sendApplicationEmail({

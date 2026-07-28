@@ -10,6 +10,13 @@ import type { ActionResult } from '@/lib/types'
 
 const MAX_SUBMISSIONS_PER_HOUR = 3
 
+const requiredContributionAnswer = z
+  .string()
+  .trim()
+  .min(1)
+  .max(5000)
+  .refine((value) => value.split(/\s+/).filter(Boolean).length <= 300, 'Please keep your response under 300 words')
+
 const applicationSchema = z.object({
   track: z.enum(TRACK_IDS as [TrackId, ...TrackId[]]),
   fullName: z.string().trim().min(1).max(200),
@@ -23,7 +30,9 @@ const applicationSchema = z.object({
     .trim()
     .min(1)
     .refine((s) => s.split(/\s+/).filter(Boolean).length <= 300, 'Please keep your response under 300 words'),
-  contribution: z.string().trim().min(1).max(5000),
+  contribution: requiredContributionAnswer,
+  pastContribution: requiredContributionAnswer,
+  participationCommitment: requiredContributionAnswer,
   primaryLink: z.string().trim().min(1).max(1000),
   linkedin: z.string().trim().max(1000).optional().default(''),
   extraLink: z.string().trim().max(2000).optional().default(''),
@@ -82,6 +91,8 @@ export async function submitApplication(input: ApplicationInput): Promise<Action
     confirmed_start_date: data.preferredStartDate,
     about: data.about,
     contribution: data.contribution,
+    past_contribution: data.pastContribution,
+    participation_commitment: data.participationCommitment,
     primary_link: data.primaryLink,
     linkedin: data.linkedin || null,
     extra_link: data.extraLink || null,
