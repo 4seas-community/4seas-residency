@@ -45,7 +45,7 @@ flowchart LR
 | Cloudflare | DNS、Resend DNS、旧 URL 重定向 | Free 即可 | 修改域名记录和 302/301 规则 |
 | Webflow | `4seas.xyz` 根站 | 保持现状 | 本项目不修改 Webflow 页面 |
 | GitHub | 代码、Issue、PR、CI、Dependabot | `4seas-community/4seas-residency` | 代码协作和合并入口 |
-| Vercel | Preview、Production、日志、回滚 | 先使用 Hobby | 负责人管理项目；其他人通过 PR Preview 验收 |
+| Vercel | Preview、Production、日志、回滚 | 先使用 Hobby | 负责人管理项目；通过 Shareable Link 让其他人验收 PR |
 | Supabase | Postgres 数据库 | Pro 组织下两个独立项目 | 分离 Preview 和 Production 数据 |
 | Resend | 状态通知邮件 | Free 起步 | 管理发件域名和两把发送 Key |
 
@@ -184,18 +184,21 @@ EMAIL_RECIPIENT_OVERRIDE=delivered+residency-preview@resend.dev
 3. Production Branch 设置为 `main`。
 4. Node.js Version 设置为 `22.x`。
 5. 在 Environment Variables 页面开启 `Automatically expose System Environment Variables`。代码使用 Vercel 自动提供的 `VERCEL_ENV` 判断是否为 Production。
-6. 保留 Git 自动部署：
+6. 在 Deployment Protection 保留 Vercel Authentication。Hobby 只允许少量直接访问成员，因此团队验收使用 Shareable Link。
+7. 保留 Git 自动部署：
    - PR/非 `main` 分支 → Preview；
    - `main` → Production。
-7. 在 Project → Settings → Domains 添加：
+8. 在 Project → Settings → Domains 添加：
 
    ```text
    residency.4seas.xyz
    ```
 
-8. Vercel 会显示该项目专属的 CNAME 目标。不要照抄其他项目的示例地址。
+9. Vercel 会显示该项目专属的 CNAME 目标。不要照抄其他项目的示例地址。
 
-Hobby 阶段只由当前负责人进入 Vercel 后台。其他团队成员从 GitHub PR 的 Vercel 检查中打开 Preview URL，不需要 Vercel 账号。
+Hobby 阶段只由当前负责人进入 Vercel 后台。GitHub PR 中自动出现的普通 Preview URL 可能要求 Vercel 登录；需要团队验收时，负责人打开对应 Deployment → Share，创建 Shareable Link 并贴到 PR。拿到该链接的人可以查看 Preview，不需要购买 Vercel 席位。不要把 Shareable Link 发布到公开渠道；不再需要时在 Vercel 中撤销。
+
+参考：[Vercel Authentication](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication)、[分享 Preview Deployment](https://vercel.com/docs/deployments/sharing-deployments)。
 
 ### 4.6 Cloudflare：把子域名直接指向 Vercel
 
@@ -359,7 +362,7 @@ PR 创建后会自动出现：
 1. GitHub Actions 的 `Typecheck and build`；
 2. Vercel Preview Deployment 和访问地址。
 
-两项都成功，并且 Preview 人工验证通过后才能合并。
+两项都成功后，由 Vercel 负责人按需生成 Shareable Link。Preview 人工验证通过后才能合并。
 
 ## 8. 数据库变更流程
 
