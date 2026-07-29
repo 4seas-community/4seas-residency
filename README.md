@@ -23,7 +23,7 @@ pnpm seed           # insert 20 fake applications (needs .env.local)
 
 ## Setup (external steps)
 
-The application uses separate Supabase Preview and Production projects, separate Resend keys, and `residency.4seas.xyz` as its production domain. Follow the complete [deployment and maintenance guide](docs/MAINTENANCE-AND-DEPLOYMENT.md) instead of configuring the platforms from this short README.
+The application uses separate Supabase Preview and Production projects, separate Resend keys, and `residency.4seas.xyz` as its production domain. Use the short [launch and platform migration checklist](docs/LAUNCH-AND-PLATFORM-MIGRATION-CHECKLIST.md) for the current cutover; consult the complete [deployment and maintenance guide](docs/MAINTENANCE-AND-DEPLOYMENT.md) for detailed procedures.
 
 For local development, copy `.env.example` to `.env.local` and request Preview-only values from the project maintainer. Never use Production secrets locally.
 
