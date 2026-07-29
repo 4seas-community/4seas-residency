@@ -67,9 +67,9 @@ Ground Truths
 | # | 路由 | 渲染 | 内容/数据来源 | 交互 |
 |---|---|---|---|---|
 | 1 | `/` | RSC（静态） | `lib/content/site.ts` + tracks 摘要 | 纯浏览；track 卡片按 `state` 显示 Now Open / Coming Soon 标签 |
-| 2 | `/residency/[track]` | RSC，`generateStaticParams`（3 个 track 预渲染） | `lib/content/tracks.ts` 对应切片 | 区块：Hero → WhatItIs → ResidencyCycle → ThemesWeCare → QuestionsWeExplore → WhatResidentsBring（longevity 用 grouped 变体）→ Footer；CTA 按 state：open→Apply / coming_soon→提示 / closed→提示 |
-| 3 | `/residency/[track]/apply` | RSC 外壳 + client 表单岛 | track 配置（标题/色/state）+ `site.ts` 统一三步流程 + `start-dates.ts` | state=open 时先展示 Apply → Review（可能面试）→ Decision，再渲染 `<ApplicationForm>`；提交成功后原地切换成功态。state 非 open 时渲染关闭提示 |
-| 4 | `/apply` | `redirect()` | — | 永久重定向到 `/residency/crypto/apply` |
+| 2 | `/[track]` | RSC，`generateStaticParams`（3 个 track 预渲染） | `lib/content/tracks.ts` 对应切片 | 区块：Hero → WhatItIs → ResidencyCycle → ThemesWeCare → QuestionsWeExplore → WhatResidentsBring（longevity 用 grouped 变体）→ Footer；CTA 按 state：open→Apply / coming_soon→提示 / closed→提示 |
+| 3 | `/[track]/apply` | RSC 外壳 + client 表单岛 | track 配置（标题/色/state）+ `site.ts` 统一三步流程 + `start-dates.ts` | state=open 时先展示 Apply → Review（可能面试）→ Decision，再渲染 `<ApplicationForm>`；提交成功后原地切换成功态。state 非 open 时渲染关闭提示 |
+| 4 | `/apply` | `redirect()` | — | 永久重定向到 `/crypto/apply` |
 | 5 | `/admin/login` | RSC 外壳 + client 表单岛 | — | 共享密码 → `login` action（统一身份 `Admin`）→ 成功 redirect `/admin` |
 | 6 | `/admin` | RSC（动态，每次请求读库）| `requireAdmin()` 门禁；`getDashboardData()` 全量读取 applications + notes + email_log | client 岛 `<AdminDashboard>`：状态汇总、筛选/搜索/排序；行点击打开完整 Sheet，展示所有申请字段、状态控制、留言、发信历史与 Retry |
 | 7 | `not-found.tsx` / `loading.tsx` | 静态 | — | M5 补 |
@@ -273,7 +273,7 @@ alter table email_log enable row level security;
 ## 10. 部署与配置
 
 - Vercel 项目，Node runtime（默认 Fluid Compute），无 Edge 依赖。
-- 环境变量（全部 server-only）：`SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`RESEND_API_KEY`、`EMAIL_FROM`、`EMAIL_REPLY_TO`、`ADMIN_PASSWORD`、`SESSION_SECRET`、`IP_HASH_SALT`、`CRON_SECRET`；唯一 `NEXT_PUBLIC_SITE_URL`（邮件内链接/OG 用）。
+- 环境变量（全部 server-only）：`SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`RESEND_API_KEY`、`EMAIL_FROM`、`EMAIL_REPLY_TO`、`EMAIL_RECIPIENT_OVERRIDE`（仅 Development/Preview）、`ADMIN_PASSWORD`、`SESSION_SECRET`、`IP_HASH_SALT`、`CRON_SECRET`；唯一 `NEXT_PUBLIC_SITE_URL`（邮件内链接/OG 用）。
 - `next.config`：**不设** `typescript.ignoreBuildErrors`；`npx tsc --noEmit` 为合并门禁。
 - 新 Supabase project（与旧数据隔离），migration 经 SQL editor 或 CLI 应用。
 

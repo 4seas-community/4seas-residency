@@ -6,11 +6,11 @@ Guidance for Claude Code when working in this repository.
 
 4Seas residency programs (crypto / art / longevity): marketing site + application funnel + admin review dashboard. Full product spec in `docs/PRD.md`, technical design in `docs/TECH-DESIGN.md` — read them before structural changes.
 
-Stack: Next.js 16 App Router · React 19 · TypeScript · Tailwind v4 · shadcn/ui (`components/ui/`) · framer-motion · Supabase (Postgres only, no Auth) · Resend · Vercel. Package manager: pnpm.
+Stack: Next.js 16 App Router · React 19 · TypeScript · Tailwind v4 · shadcn/ui (`components/ui/`) · framer-motion · Supabase (Postgres only, no Auth) · Resend · Vercel. Runtime: Node.js 22. Package manager: pnpm 10.5.2.
 
-**`basePath` is `/residency`** — the root of `4seas.xyz` is a separate Webflow site, so everything here is served under that one prefix. App-router paths therefore sit one level below the public URL: `app/[track]/page.tsx` answers `/residency/crypto`. Next prefixes routes, `<Link>` and `redirect()` on its own; literal strings do not get it for free — `public/` asset URLs, `metadata.icons`, and `NextResponse.redirect` in `middleware.ts` all spell `/residency` out.
+**There is no `basePath`.** Production is served from `https://residency.4seas.xyz`; the root `4seas.xyz` site remains on Webflow. `next.config.mjs` temporarily redirects legacy `/residency/*` requests to the subdomain during cutover. Long-term legacy redirects live in Cloudflare.
 
-Public URLs: `/residency` · `/residency/[track]` · `/residency/[track]/apply` · `/residency/apply` (legacy redirect) · `/residency/admin` + `/residency/admin/login`. There are no API routes and no scheduled jobs.
+Public URLs: `/` · `/[track]` · `/[track]/apply` · `/apply` (legacy redirect) · `/admin` + `/admin/login`. There are no API routes and no scheduled jobs.
 
 ## Commands
 
@@ -32,8 +32,8 @@ There are no automated tests by design; verification is manual per `docs/PRD.md`
 - **Status machine**: `submitted → reviewing → interview → accepted | rejected | cancelled` (6 statuses, `lib/types.ts`; `cancelled` = candidate-initiated exit at any stage, no email, distinct from admin-decided `rejected`). interview/accepted/rejected trigger the preview dialog; status update is decoupled from email outcome (email failure never rolls back status). **Every email the system sends passes through that dialog** — nothing is sent without an admin looking at it first. The `movein_guide` type still exists in `EmailType` and `lib/email/templates.ts`, but the daily cron that used to send it was removed, so nothing reaches it today.
 - **Decision/scheduling fields** (all admin-set, never emailed on change): `decided_after_interview` — chosen explicitly in the Accept/Reject variant submenu, defaults to after-interview iff the row is currently in `interview` status, null on non-terminal rows and legacy rows (rendered as the direct variant). Interview times are coordinated off-platform and not tracked; the legacy `interview_scheduled_at` DB column remains but is never read or written. `confirmed_start_date` — the working move-in date: written at submission (= `preferred_start_date`), admin-adjustable afterwards, never null (006 backfilled legacy rows, code assumes non-null with no fallbacks); `preferred_start_date` is never overwritten and remains visible in the drawer.
 - **Apply funnel order is deliberate** (`lib/actions/public.ts`): zod → honeypot (`website` field returns fake success, stores nothing) → authoritative track-state check → rate limit (3/hour per `sha256(ip + IP_HASH_SALT)`; raw IP never stored) → insert. No applicant confirmation email by design — the success page is the confirmation.
-- **Schema changes are manual SQL.** `supabase/migrations/*.sql` is run by hand in the Supabase SQL editor — no migration tooling. A schema change = new numbered SQL file + tell the user to run it.
-- **The Supabase project also holds the v1 archive.** `applications`/`review_notes`/`email_log` live alongside v1's `residency_applications`/`admin_comments` in project `zccyfyjjfptnntwarowy`. The archive tables are read-only history — 009 imported them and nothing writes to them. They still carry v1's permissive RLS policies, which must be dropped once v1 is off the air; see `docs/V1-MIGRATION-AND-CUTOVER.md` for that and for the remaining cutover steps.
+- **Schema changes are versioned migrations.** Every change gets a new numbered file in `supabase/migrations/*.sql`. Developers use the pinned Supabase CLI against the disposable Preview project; Production migrations are reviewed, backed up, then applied manually by the deployment owner. See `docs/MAINTENANCE-AND-DEPLOYMENT.md`.
+- **Production Supabase also holds the v1 archive.** `applications`/`review_notes`/`email_log` live alongside v1's `residency_applications`/`admin_comments` in project `zccyfyjjfptnntwarowy`. The archive tables are read-only history — 009 imported them and nothing writes to them. Preview does not contain the v1 tables, so 009 safely skips there. The old permissive RLS policies must be dropped once v1 is off the air; see `docs/V1-MIGRATION-AND-CUTOVER.md`.
 
 ## Conventions
 
@@ -43,4 +43,4 @@ There are no automated tests by design; verification is manual per `docs/PRD.md`
 
 ## Env vars
 
-All server-only except `NEXT_PUBLIC_SITE_URL` — see `.env.example`. Never expose `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `ADMIN_PASSWORD`, `SESSION_SECRET` to the client.
+All server-only except `NEXT_PUBLIC_SITE_URL` — see `.env.example`. Never expose `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `ADMIN_PASSWORD`, `SESSION_SECRET` to the client. Development and Preview set `EMAIL_RECIPIENT_OVERRIDE`; `sendApplicationEmail` also defaults to the Resend test recipient unless `VERCEL_ENV=production`. Production must leave the override unset.

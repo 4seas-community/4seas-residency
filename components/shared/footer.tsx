@@ -8,15 +8,15 @@ export function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3 md:gap-4 flex-wrap justify-center">
             <a href={COMMUNITY_LINKS.website} target="_blank" rel="noopener noreferrer">
-              <img src="/residency/images/4seas-logo.png" alt="4Seas" className="h-7 w-auto" />
+              <img src="/images/4seas-logo.png" alt="4Seas" className="h-7 w-auto" />
             </a>
             <span className="text-muted-foreground/50">|</span>
             <a href={COMMUNITY_LINKS.website} target="_blank" rel="noopener noreferrer">
-              <img src="/residency/images/zuzalu-library-logo.png" alt="Zuzalu Library" className="h-7 w-auto" />
+              <img src="/images/zuzalu-library-logo.png" alt="Zuzalu Library" className="h-7 w-auto" />
             </a>
             <span className="text-muted-foreground/50">|</span>
             <a href={COMMUNITY_LINKS.ethchiangmai} target="_blank" rel="noopener noreferrer">
-              <img src="/residency/images/ethchiangmai-logo.png" alt="ETHChiangmai" className="h-5 w-auto" />
+              <img src="/images/ethchiangmai-logo.png" alt="ETHChiangmai" className="h-5 w-auto" />
             </a>
           </div>
 

@@ -188,15 +188,15 @@ submitted → reviewing → interview → accepted
 
 ### 环境变量
 
-`SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`RESEND_API_KEY`、`EMAIL_FROM`、`EMAIL_REPLY_TO`、`ADMIN_PASSWORD`、`SESSION_SECRET`、`IP_HASH_SALT`、`CRON_SECRET`、`NEXT_PUBLIC_SITE_URL`。
+`SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`RESEND_API_KEY`、`EMAIL_FROM`、`EMAIL_REPLY_TO`、`EMAIL_RECIPIENT_OVERRIDE`（仅 Development/Preview）、`ADMIN_PASSWORD`、`SESSION_SECRET`、`IP_HASH_SALT`、`CRON_SECRET`、`NEXT_PUBLIC_SITE_URL`。
 
 ### 路由结构
 
 | 路径 | 说明 |
 |---|---|
 | `/` | 首页（server component，读内容配置） |
-| `/residency/[track]` | 介绍页，state 驱动 CTA（Apply / Coming Soon / Closed） |
-| `/residency/[track]/apply` | 申请页；state ≠ open 时渲染关闭提示，服务端再校验 |
+| `/[track]` | 介绍页，state 驱动 CTA（Apply / Coming Soon / Closed） |
+| `/[track]/apply` | 申请页；state ≠ open 时渲染关闭提示，服务端再校验 |
 | `/apply` | redirect → crypto 申请页（保留旧链接） |
 | `/admin/login` | 管理员登录（共享密码，统一身份 `Admin`） |
 | `/admin` | 审核后台列表 + 筛选 + 完整申请抽屉（状态、留言与发信历史） |

@@ -12,6 +12,13 @@
 -- application rather than dropped. Everything else in the source table is empty across
 -- all rows and carries nothing.
 
+do $migration$
+begin
+  if to_regclass('public.residency_applications') is null then
+    raise notice 'Skipping v1 import: public.residency_applications does not exist.';
+    return;
+  end if;
+
 insert into applications (
   id, created_at, track, status,
   full_name, email, telegram_or_whatsapp, contact_method, country,
@@ -73,10 +80,14 @@ from residency_applications a
 on conflict (id) do nothing;
 
 -- v1's admin comments become review notes, keeping their ids and timestamps.
+if to_regclass('public.admin_comments') is not null then
 insert into review_notes (id, application_id, author_name, note, created_at)
 select c.id, c.application_id, c.reviewer_name, c.comment, c.created_at
 from admin_comments c
 on conflict (id) do nothing;
+else
+  raise notice 'Skipping v1 admin comments: public.admin_comments does not exist.';
+end if;
 
 -- `needs_support` is the one answer v1 collected that v2 has no column for and that is
 -- not already readable somewhere else, so it is the only thing carried over as a note.
@@ -103,3 +114,5 @@ set contact_method = 'telegram'
 where contact_method is null
   and ip_hash = 'v1-migrated'
   and telegram_or_whatsapp ~* 't\.me|telegram';
+end
+$migration$;

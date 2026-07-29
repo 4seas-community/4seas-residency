@@ -1,5 +1,7 @@
 # v1 → v2 迁移与上线
 
+> 本文是旧 `/residency` 路径迁移的历史记录。当前部署目标已改为 `https://residency.4seas.xyz`；实际操作以 [`MAINTENANCE-AND-DEPLOYMENT.md`](./MAINTENANCE-AND-DEPLOYMENT.md) 为准。
+
 替换线上 `4seas.xyz/residency` 的完整记录。截至 2026-07-28，代码改动和数据迁移已完成并验证，**流量尚未切换**。
 
 ## 两套系统

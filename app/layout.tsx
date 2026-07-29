@@ -12,13 +12,12 @@ export const metadata: Metadata = {
   title: SITE.title,
   description: SITE.description,
   metadataBase: process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL) : undefined,
-  // public/ paths are not basePath-prefixed for us — see next.config.mjs
   icons: {
     icon: [
-      { url: '/residency/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
-      { url: '/residency/icon-dark-32x32.png', media: '(prefers-color-scheme: dark)' },
+      { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
+      { url: '/icon-dark-32x32.png', media: '(prefers-color-scheme: dark)' },
     ],
-    apple: '/residency/apple-icon.png',
+    apple: '/apple-icon.png',
   },
 }
 

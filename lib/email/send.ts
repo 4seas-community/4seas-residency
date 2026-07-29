@@ -4,6 +4,8 @@ import { db } from '@/lib/db'
 import { getEmailContent, renderCustomEmail } from '@/lib/email/templates'
 import type { Application, EmailOverride, EmailType } from '@/lib/types'
 
+const NON_PRODUCTION_RECIPIENT = 'delivered+residency-preview@resend.dev'
+
 export interface SendResult {
   outcome: 'sent' | 'failed'
   error?: string
@@ -21,6 +23,10 @@ export async function sendApplicationEmail(opts: {
 }): Promise<SendResult> {
   const { application, type, triggeredBy, override } = opts
   const content = override ? renderCustomEmail(override.subject, override.text) : getEmailContent(type, application)
+  // A missing Preview/local override must fail safe, never toward an applicant.
+  const recipient =
+    process.env.EMAIL_RECIPIENT_OVERRIDE?.trim() ||
+    (process.env.VERCEL_ENV === 'production' ? application.email : NON_PRODUCTION_RECIPIENT)
 
   let outcome: 'sent' | 'failed' = 'sent'
   let resendId: string | null = null
@@ -33,7 +39,7 @@ export async function sendApplicationEmail(opts: {
     const resend = new Resend(apiKey)
     const { data, error } = await resend.emails.send({
       from,
-      to: application.email,
+      to: recipient,
       replyTo: process.env.EMAIL_REPLY_TO,
       subject: content.subject,
       html: content.html,
@@ -49,7 +55,7 @@ export async function sendApplicationEmail(opts: {
   const { error: logError } = await db().from('email_log').insert({
     application_id: application.id,
     email_type: type,
-    recipient: application.email,
+    recipient,
     subject: content.subject,
     outcome,
     body_text: override ? content.text : null,
