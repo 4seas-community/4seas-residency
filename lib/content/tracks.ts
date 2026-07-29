@@ -60,7 +60,7 @@ export const TRACKS: Record<TrackId, TrackConfig> = {
     shortName: 'Crypto',
     state: 'open',
     accentColor: '#0A6B5A',
-    image: '/residency/images/crypto.png',
+    image: '/images/crypto.png',
     card: {
       description:
         'For crypto builders, researchers, and creators exploring how Ethereum and onchain communities connect with real-life community building.',
@@ -133,7 +133,7 @@ export const TRACKS: Record<TrackId, TrackConfig> = {
     shortName: 'Art',
     state: 'open',
     accentColor: '#e11d48',
-    image: '/residency/images/art.png',
+    image: '/images/art.png',
     card: {
       description:
         'For artists, filmmakers, designers, curators and art practitioners who want to create, produce, and experiment inside a living community.',
@@ -206,7 +206,7 @@ export const TRACKS: Record<TrackId, TrackConfig> = {
     shortName: 'Longevity',
     state: 'open',
     accentColor: '#10b981',
-    image: '/residency/images/longevity.png',
+    image: '/images/longevity.png',
     card: {
       description:
         'For scientists, biohackers, and longevity enthusiasts exploring life extension research in a health-optimized environment.',
