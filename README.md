@@ -2,7 +2,7 @@
 
 Marketing site + application funnel + admin review dashboard for the 4Seas residency programs (crypto / art / longevity) in Chiang Mai.
 
-Product spec: `docs/PRD.md` · Technical design: `docs/TECH-DESIGN.md`
+Product spec: `docs/PRD.md` · Technical design: `docs/TECH-DESIGN.md` · Maintenance and deployment: `docs/MAINTENANCE-AND-DEPLOYMENT.md`
 
 ## Stack
 
